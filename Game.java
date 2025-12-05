@@ -6,14 +6,15 @@ import java.awt.event.*;
 import java.awt.geom.*;
 import java.util.*;
 import java.util.List;
+import java.util.Queue;
+import javax.swing.Timer;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║          MAZE ADVENTURE - ENHANCED VERSION                   ║
- * ║  Beautiful UI with Database Integration                      ║
+ * ║          MAZE ADVENTURE - ENHANCED VERSION                                         ║
  * ╚══════════════════════════════════════════════════════════════╝
  * 
  * IMAGES TO ADD IN PROJECT FOLDER:
@@ -30,7 +31,11 @@ import java.io.IOException;
  * );
  */
 
-public class Game {
+enum Difficulty {
+    EASY, MEDIUM, HARD
+}
+
+public class Game{
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new EnhancedLogin());
     }
@@ -43,55 +48,32 @@ class Connectivity {
     static {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            System.out.println("✓ MySQL JDBC Driver loaded successfully");
         } catch (ClassNotFoundException e) {
-            System.err.println("✗ MySQL JDBC Driver not found!");
             e.printStackTrace();
         }
     }
 
-    // UPDATE THESE WITH YOUR ACTUAL DATABASE CREDENTIALS
     private static final String URL = "jdbc:mysql://localhost:3306/project3";
     private static final String USER = "root";
-    private static final String PASSWORD = "love you too";  // CHANGE THIS TO YOUR MYSQL PASSWORD
+    private static final String PASSWORD = "saiki$18";
 
     public static Connection connectingToDatabase() {
         try {
-            Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("✓ Database connection successful!");
-            return conn;
+            return DriverManager.getConnection(URL, USER, PASSWORD);
         } catch (SQLException e) {
-            System.err.println("✗ Database connection failed!");
-            System.err.println("URL: " + URL);
-            System.err.println("USER: " + USER);
-            System.err.println("Error: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
     }
-    
-    // Test connection method
-    public static boolean testConnection() {
-        Connection conn = connectingToDatabase();
-        if (conn != null) {
-            try {
-                conn.close();
-                return true;
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ENHANCED LOGIN FRAME - BEAUTIFUL UI
+// LOGIN FRAME 
 // ═══════════════════════════════════════════════════════════════
 class EnhancedLogin extends JFrame {
     private Image backgroundImage;
     private List<FloatingParticle> particles = new ArrayList<>();
-    private javax.swing.Timer animationTimer;
+    private Timer animationTimer;
     
     public EnhancedLogin() {
         setTitle("Maze Adventure - Login");
@@ -99,24 +81,6 @@ class EnhancedLogin extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
-        
-        // Test database connection
-        if (!Connectivity.testConnection()) {
-            int response = JOptionPane.showConfirmDialog(this,
-                "Database connection failed!\n\n" +
-                "Make sure:\n" +
-                "1. MySQL is running\n" +
-                "2. Database 'project3' exists\n" +
-                "3. User credentials are correct (check Connectivity class)\n\n" +
-                "Continue without database?",
-                "Database Error",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-            
-            if (response == JOptionPane.NO_OPTION) {
-                System.exit(0);
-            }
-        }
         
         // Load background - USE IMAGE 1 (Green maze with tower)
         loadBackground("bg1.png", "bg1.jpg");
@@ -127,7 +91,7 @@ class EnhancedLogin extends JFrame {
         }
         
         // Animation
-        animationTimer = new javax.swing.Timer(30, e -> {
+        animationTimer = new Timer(30, e -> {
             for (FloatingParticle p : particles) p.update();
             repaint();
         });
@@ -198,7 +162,7 @@ class EnhancedLogin extends JFrame {
             
             SwingUtilities.invokeLater(this::createComponents);
             
-            javax.swing.Timer waveTimer = new javax.swing.Timer(50, e -> {
+            Timer waveTimer = new Timer(50, e -> {
                 titleWave += 0.1f;
                 repaint();
             });
@@ -267,7 +231,7 @@ class EnhancedLogin extends JFrame {
                 if (rs.next()) {
                     // User exists - login successful
                     showMessage("Welcome back, " + user + "!", new Color(46, 204, 113));
-                   javax.swing.Timer  delay = new javax.swing.Timer(1000, ev -> {
+                   Timer  delay = new Timer(1000, ev -> {
                         EnhancedLogin.this.dispose();
                         new EnhancedMainMenu(user);
                     });
@@ -289,24 +253,8 @@ class EnhancedLogin extends JFrame {
                 return;
             }
             
-            // Check if user already exists
+            // Create new account
             try (Connection conn = Connectivity.connectingToDatabase()) {
-                if (conn == null) {
-                    showMessage("Database connection failed!", Color.RED);
-                    return;
-                }
-                
-                String checkQuery = "SELECT user_id FROM game WHERE user = ?";
-                PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
-                checkStmt.setString(1, user);
-                ResultSet rs = checkStmt.executeQuery();
-                
-                if (rs.next()) {
-                    showMessage("Username already exists! Please login.", Color.ORANGE);
-                    return;
-                }
-                
-                // Create new account
                 String query = "INSERT INTO game (user, scores, number_of_games_played) VALUES (?, 0, 0)";
                 PreparedStatement pstmt = conn.prepareStatement(query);
                 pstmt.setString(1, user);
@@ -314,7 +262,7 @@ class EnhancedLogin extends JFrame {
                 
                 if (rows > 0) {
                     showMessage("Account created! Welcome, " + user + "!", new Color(46, 204, 113));
-                    javax.swing.Timer delay = new javax.swing.Timer(1500, ev -> {
+                    Timer delay = new Timer(1500, ev -> {
                         EnhancedLogin.this.dispose();
                         new EnhancedMainMenu(user);
                     });
@@ -322,8 +270,12 @@ class EnhancedLogin extends JFrame {
                     delay.start();
                 }
             } catch (SQLException ex) {
-                ex.printStackTrace();
-                showMessage("Registration failed: " + ex.getMessage(), Color.RED);
+                if (ex.getMessage().contains("Duplicate")) {
+                    showMessage("Username already exists! Please login.", Color.ORANGE);
+                } else {
+                    ex.printStackTrace();
+                    showMessage("Registration failed!", Color.RED);
+                }
             }
         }
         
@@ -354,7 +306,7 @@ class EnhancedLogin extends JFrame {
             dialog.setContentPane(panel);
             dialog.setVisible(true);
             
-            javax.swing.Timer close = new javax.swing.Timer(2500, e -> dialog.dispose());
+            Timer close = new Timer(2500, e -> dialog.dispose());
             close.setRepeats(false);
             close.start();
         }
@@ -419,12 +371,12 @@ class EnhancedLogin extends JFrame {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ENHANCED MAIN MENU - BEAUTIFUL DASHBOARD
+// MAIN MENU DASHBOARD
 // ═══════════════════════════════════════════════════════════════
 class EnhancedMainMenu extends JFrame {
     private Image backgroundImage;
     private List<HexOrb> orbs = new ArrayList<>();
-    private javax.swing.Timer animationTimer;
+    private Timer animationTimer;
     private String playerName;
     
     public EnhancedMainMenu(String playerName) {
@@ -444,7 +396,7 @@ class EnhancedMainMenu extends JFrame {
             orbs.add(new HexOrb());
         }
         
-        animationTimer = new javax.swing.Timer(25, e -> {
+        animationTimer = new Timer(25, e -> {
             for (HexOrb orb : orbs) orb.update();
             repaint();
         });
@@ -545,7 +497,7 @@ class EnhancedMainMenu extends JFrame {
             
             SwingUtilities.invokeLater(this::createButtons);
             
-            javax.swing.Timer gradTimer = new javax.swing.Timer(60, e -> {
+            Timer gradTimer = new Timer(60, e -> {
                 gradOffset += 0.02f;
                 repaint();
             });
@@ -555,7 +507,7 @@ class EnhancedMainMenu extends JFrame {
         void createButtons() {
             startBtn = new GlowingButton("START GAME ⚔", new Color(46, 204, 113));
             startBtn.setBounds(400, 320, 400, 85);
-            startBtn.addActionListener(e -> startGame());
+            startBtn.addActionListener(e -> new DifficultyMenuFrame(11, 15, playerName).setVisible(true));
             add(startBtn);
             
             leaderBtn = new GlowingButton("LEADERBOARD ★", new Color(241, 196, 15));
@@ -572,9 +524,8 @@ class EnhancedMainMenu extends JFrame {
         void startGame() {
             EnhancedMainMenu.this.dispose();
             SwingUtilities.invokeLater(() -> {
-                MazeFrame frame = new MazeFrame(11, 15, playerName);
-                frame.setVisible(true);
-            });
+            new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+        });
         }
         
         void showLeaderboard() {
@@ -664,11 +615,11 @@ class EnhancedMainMenu extends JFrame {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ENHANCED LEADERBOARD
+// LEADERBOARD
 // ═══════════════════════════════════════════════════════════════
 class EnhancedLeaderboard extends JFrame {
     private List<TwinkleStar> stars = new ArrayList<>();
-    private javax.swing.Timer animationTimer;
+    private Timer animationTimer;
     private String currentPlayer;
     
     public EnhancedLeaderboard(String currentPlayer, JFrame parent) {
@@ -683,7 +634,7 @@ class EnhancedLeaderboard extends JFrame {
             stars.add(new TwinkleStar());
         }
         
-        animationTimer = new javax.swing.Timer(40, e -> {
+        animationTimer = new Timer(40, e -> {
             for (TwinkleStar s : stars) s.update();
             repaint();
         });
@@ -746,7 +697,7 @@ class EnhancedLeaderboard extends JFrame {
             bottomPanel.add(backBtn);
             add(bottomPanel, BorderLayout.SOUTH);
             
-            javax.swing.Timer pulseTimer = new javax.swing.Timer(60, e -> {
+            Timer pulseTimer = new Timer(60, e -> {
                 titlePulse += 0.12f;
                 repaint();
             });
@@ -888,7 +839,7 @@ class EnhancedLeaderboard extends JFrame {
 class GlowingButton extends JButton {
     private Color baseColor;
     private float hoverProgress = 0f;
-    private javax.swing.Timer hoverTimer;
+    private Timer hoverTimer;
     
     public GlowingButton(String text, Color baseColor) {
         super(text);
@@ -904,7 +855,7 @@ class GlowingButton extends JButton {
         addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 if (hoverTimer != null) hoverTimer.stop();
-                hoverTimer = new javax.swing.Timer(25, ev -> {
+                hoverTimer = new Timer(25, ev -> {
                     hoverProgress = Math.min(1f, hoverProgress + 0.12f);
                     repaint();
                 });
@@ -913,7 +864,7 @@ class GlowingButton extends JButton {
             
             public void mouseExited(MouseEvent e) {
                 if (hoverTimer != null) hoverTimer.stop();
-                hoverTimer = new javax.swing.Timer(25, ev -> {
+                hoverTimer = new Timer(25, ev -> {
                     hoverProgress = Math.max(0f, hoverProgress - 0.12f);
                     if (hoverProgress <= 0) hoverTimer.stop();
                     repaint();
@@ -1015,135 +966,502 @@ class GlowBorder extends AbstractBorder {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// GAME CODE - UNTOUCHED! ONLY ADDED playerName PARAMETER
+// LEVEL DASHBOARD
 // ═══════════════════════════════════════════════════════════════
 
+class DifficultyMenuFrame extends JFrame {
+    private final int rows;
+    private final int cols;
+    private String playerName;
+    private Image backgroundImage;
+    private float glowIntensity = 0f;
+    private Timer animationTimer;
+    private List<Particle> particles = new ArrayList<>();
+    private Random random = new Random();
+
+    class Particle {
+        float x, y, size, speed, alpha;
+        
+        Particle() {
+            reset();
+        }
+        
+        void reset() {
+            x = random.nextFloat() * 2000;
+            y = random.nextFloat() * 1200;
+            size = random.nextFloat() * 3 + 1;
+            speed = random.nextFloat() * 0.5f + 0.2f;
+            alpha = random.nextFloat() * 0.5f + 0.3f;
+        }
+        
+        void update() {
+            y -= speed;
+            alpha -= 0.001f;
+            if (y < -10 || alpha <= 0) {
+                reset();
+            }
+        }
+    }
+
+    DifficultyMenuFrame(int rows, int cols, String playerName) {  // ADD playerName parameter
+    super("Maze Adventure");
+    this.rows = rows;
+    this.cols = cols;
+    this.playerName = playerName;
+
+        // Initialize particles
+        for (int i = 0; i < 50; i++) {
+            particles.add(new Particle());
+        }
+
+        // Load background image (level.jpeg)
+        try {
+            File bgFile = new File("level.jpeg");
+            if (bgFile.exists()) {
+                backgroundImage = ImageIO.read(bgFile);
+            }
+        } catch (IOException e) {
+            System.err.println("Background image not found, using gradient: " + e.getMessage());
+        }
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setUndecorated(false);
+
+        // Main panel with animations
+        JPanel mainPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Draw background
+                if (backgroundImage != null) {
+                    g2.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+                    // Dark overlay
+                    g2.setColor(new Color(0, 0, 0, 120));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                } else {
+                    GradientPaint gradient = new GradientPaint(
+                        0, 0, new Color(10, 20, 15),
+                        0, getHeight(), new Color(20, 40, 30)
+                    );
+                    g2.setPaint(gradient);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+
+                // Draw animated particles
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+                for (Particle p : particles) {
+                    g2.setColor(new Color(100, 255, 150, (int)(p.alpha * 255)));
+                    g2.fillOval((int)p.x, (int)p.y, (int)p.size, (int)p.size);
+                    
+                    // Glow effect
+                    float glowSize = p.size * 3;
+                    RadialGradientPaint glow = new RadialGradientPaint(
+                        p.x + p.size/2, p.y + p.size/2, glowSize,
+                        new float[]{0f, 1f},
+                        new Color[]{
+                            new Color(100, 255, 150, (int)(p.alpha * 100)),
+                            new Color(100, 255, 150, 0)
+                        }
+                    );
+                    g2.setPaint(glow);
+                    g2.fillOval((int)(p.x - glowSize), (int)(p.y - glowSize), 
+                               (int)(glowSize * 2), (int)(glowSize * 2));
+                }
+            }
+        };
+        mainPanel.setOpaque(false);
+
+        // Title panel with glow effect
+        JPanel titlePanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+            }
+        };
+        titlePanel.setOpaque(false);
+        titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
+        titlePanel.setBorder(BorderFactory.createEmptyBorder(80, 20, 60, 20));
+
+        JLabel mainTitle = new JLabel("MAZE ADVENTURE") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, 
+                                   RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                
+                // Text glow
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                int textWidth = fm.stringWidth(getText());
+                int x = (getWidth() - textWidth) / 2;
+                int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                
+                // Multiple glow layers
+                for (int i = 8; i > 0; i--) {
+                    int alpha = (int)(50 * glowIntensity * (i / 8f));
+                    g2.setColor(new Color(100, 255, 150, alpha));
+                    g2.drawString(getText(), x - i/2, y - i/2);
+                    g2.drawString(getText(), x + i/2, y + i/2);
+                }
+                
+                // Main text
+                g2.setColor(new Color(180, 255, 200));
+                g2.drawString(getText(), x, y);
+            }
+        };
+        mainTitle.setFont(new Font("Impact", Font.BOLD, 86));
+        mainTitle.setForeground(new Color(180, 255, 200));
+        mainTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainTitle.setOpaque(false);
+        
+        JLabel subtitle = new JLabel("The Gate to the Maze Awaits") ;
+        subtitle.setFont(new Font("Arial", Font.ITALIC, 28));
+        subtitle.setForeground(new Color(150, 220, 180));
+        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        titlePanel.add(mainTitle);
+        titlePanel.add(Box.createVerticalStrut(15));
+        titlePanel.add(subtitle);
+
+        // Center panel for buttons
+        JPanel centerPanel = new JPanel(new GridBagLayout());
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 120, 50));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = GridBagConstraints.RELATIVE;
+        gbc.insets = new Insets(25, 0, 25, 0);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+
+        // Create animated buttons
+        AnimatedButton easyBtn = new AnimatedButton(" EASY ", new Color(100, 255, 150), " ");
+        AnimatedButton medBtn = new AnimatedButton(" MEDIUM ", new Color(255, 200, 50), " ");
+        AnimatedButton hardBtn = new AnimatedButton(" HARD ", new Color(255, 80, 80), " ");
+
+        centerPanel.add(easyBtn, gbc);
+        centerPanel.add(medBtn, gbc);
+        centerPanel.add(hardBtn, gbc);
+
+        mainPanel.add(titlePanel, BorderLayout.NORTH);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+
+        add(mainPanel);
+
+        // Animation timer
+        animationTimer = new Timer(30, e -> {
+            glowIntensity = (float)(Math.sin(System.currentTimeMillis() / 300.0) * 0.5 + 0.5);
+            for (Particle p : particles) {
+                p.update();
+            }
+            repaint();
+        });
+        animationTimer.start();
+
+        // Action listeners
+        easyBtn.addActionListener(e -> openGame(Difficulty.EASY));
+        medBtn.addActionListener(e -> openGame(Difficulty.MEDIUM));
+        hardBtn.addActionListener(e -> openGame(Difficulty.HARD));
+
+        setLocationRelativeTo(null);
+    }
+
+    class AnimatedButton extends JButton {
+        private float hoverProgress = 0f;
+        private Timer hoverTimer;
+        private Color baseColor;
+        private String description;
+        private float pulsePhase = (float)(Math.random() * Math.PI * 2);
+
+        AnimatedButton(String text, Color color, String desc) {
+            super(text);
+            this.baseColor = color;
+            this.description = desc;
+            
+            setPreferredSize(new Dimension(700, 120));
+            setFont(new Font("Impact", Font.BOLD, 48));
+            setForeground(Color.WHITE);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            hoverTimer = new Timer(20, e -> {
+                repaint();
+            });
+            hoverTimer.start();
+
+            addMouseListener(new MouseAdapter() {
+                Timer fadeTimer;
+                
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    if (fadeTimer != null) fadeTimer.stop();
+                    fadeTimer = new Timer(10, evt -> {
+                        hoverProgress = Math.min(1f, hoverProgress + 0.05f);
+                        if (hoverProgress >= 1f) {
+                            fadeTimer.stop();
+                        }
+                    });
+                    fadeTimer.start();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    if (fadeTimer != null) fadeTimer.stop();
+                    fadeTimer = new Timer(10, evt -> {
+                        hoverProgress = Math.max(0f, hoverProgress - 0.05f);
+                        if (hoverProgress <= 0f) {
+                            fadeTimer.stop();
+                        }
+                    });
+                    fadeTimer.start();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, 
+                               RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            int w = getWidth();
+            int h = getHeight();
+            pulsePhase += 0.05f;
+            float pulse = (float)(Math.sin(pulsePhase) * 0.5 + 0.5);
+
+            // Outer glow
+            int glowSize = (int)(30 + hoverProgress * 20);
+            for (int i = glowSize; i > 0; i -= 3) {
+                int alpha = (int)((50 + hoverProgress * 100) * (1 - i / (float)glowSize));
+                g2.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), 
+                                     baseColor.getBlue(), alpha));
+                g2.fillRoundRect(-i/2, -i/2, w + i, h + i, 35 + i/2, 35 + i/2);
+            }
+
+            // Button background with gradient
+            Color brightColor = new Color(
+                Math.min(255, baseColor.getRed() + (int)(50 * hoverProgress)),
+                Math.min(255, baseColor.getGreen() + (int)(50 * hoverProgress)),
+                Math.min(255, baseColor.getBlue() + (int)(50 * hoverProgress))
+            );
+            
+            GradientPaint gradient = new GradientPaint(
+                0, 0, brightColor,
+                0, h, baseColor.darker()
+            );
+            g2.setPaint(gradient);
+            g2.fillRoundRect(5, 5, w - 10, h - 10, 30, 30);
+
+            // Animated border
+            g2.setStroke(new BasicStroke(4 + hoverProgress * 3));
+            g2.setColor(new Color(255, 255, 255, (int)(150 + pulse * 105)));
+            g2.drawRoundRect(5, 5, w - 10, h - 10, 30, 30);
+
+            // Inner glow
+            g2.setColor(new Color(255, 255, 255, (int)(50 + hoverProgress * 100)));
+            g2.fillRoundRect(10, 10, w - 20, h/3, 25, 25);
+
+            // Draw text with glow
+            g2.setFont(getFont());
+            FontMetrics fm = g2.getFontMetrics();
+            int textWidth = fm.stringWidth(getText());
+            int textX = (w - textWidth) / 2;
+            int textY = h/2 + fm.getAscent()/2 - 10;
+
+            // Text shadow/glow
+            for (int i = 4; i > 0; i--) {
+                g2.setColor(new Color(0, 0, 0, 50));
+                g2.drawString(getText(), textX + i, textY + i);
+            }
+
+            // Main text
+            g2.setColor(Color.WHITE);
+            g2.drawString(getText(), textX, textY);
+
+            // Description text
+            g2.setFont(new Font("Arial", Font.BOLD, 20));
+            g2.setColor(new Color(255, 255, 255, 200));
+            int descWidth = g2.getFontMetrics().stringWidth(description);
+            g2.drawString(description, (w - descWidth) / 2, h - 20);
+
+            g2.dispose();
+        }
+    }
+
+    private void openGame(Difficulty dif) {
+        animationTimer.stop();
+        MazeFrame frame = new MazeFrame(rows, cols, dif, playerName);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+        this.dispose();
+    }
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// GAME CODE 
+// ═══════════════════════════════════════════════════════════════
+
+//creation of single cell of grid
 class Cell {
-    int r, c;
-    boolean[] wall = {true, true, true, true};
-    boolean visited = false;
-    boolean trap = false;
-    boolean treasure = false;
-    
-    Cell(int r, int c) {
-        this.r = r;
-        this.c = c;
+    int r;//row
+    int c ; // column 
+    boolean[] wall = { true, true, true, true }; // top, right, bottom, left
+    boolean visited = false;//for maze generation(DFS tracker)
+    boolean trap = false; 
+    boolean treasure = false; 
+
+    Cell(int r, int c){
+         this.r = r; 
+         this.c = c; 
     }
 }
 
 class Maze {
-    int rows, cols;
-    Cell[][] grid;
+     int rows;
+     int cols;
+    Cell[][] grid;//2D array holding all cells 
     Random rand;
-    
-    Maze(int rows, int cols) {
-        this.rows = rows;
-        this.cols = cols;
-        this.rand = new Random(System.nanoTime());
-        grid = new Cell[rows][cols];
-        
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-                grid[r][c] = new Cell(r, c);
-    }
-    
+
+  Maze(int rows, int cols) {
+   
+    this.rows = rows;
+    this.cols = cols;
+    this.rand = new Random(System.nanoTime());// produces maze different every time
+    grid = new Cell[rows][cols];
+
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            grid[r][c] = new Cell(r, c);
+  }
+
+    //generation of random maze with internal DFS backtracker
     void generate() {
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                Cell cell = grid[r][c];
-                cell.wall[0] = cell.wall[1] = cell.wall[2] = cell.wall[3] = true;
-                cell.visited = false;
-                cell.trap = false;
-                cell.treasure = false;
-            }
+        // fresh grid
+        for (int r = 0; r < rows; r++){
+         for (int c = 0; c < cols; c++) {
+            Cell cell = grid[r][c];    //Local reference to the Cell object
+
+            cell.wall[0] = cell.wall[1] = cell.wall[2] = cell.wall[3] = true;   //walls visible (cell closed in all direction )
+            cell.visited = false;           //Clears the visited flag used by DFS/backtracker
+            cell.trap = false;
+            cell.treasure = false;
         }
-        
-        Stack<Cell> stack = new Stack<>();
-        Cell start = grid[0][0];
+    }
+
+    //to implement iterative DFS (backtracking)
+        Stack <Cell> stack = new Stack<>();
+        Cell start = grid[0][0];    //generation begins here 
         start.visited = true;
-        stack.push(start);
-        
+        stack.push(start);          //pushing starting cell onto stack
+
         while (!stack.isEmpty()) {
             Cell current = stack.peek();
-            List<Cell> unvisited = new ArrayList<>();
-            int r = current.r;
+            List <Cell> unvisited = new ArrayList<>();
+            int r = current.r ;
             int c = current.c;
-            
-            if (r > 0 && !grid[r-1][c].visited) unvisited.add(grid[r-1][c]);
-            if (c < cols-1 && !grid[r][c+1].visited) unvisited.add(grid[r][c+1]);
-            if (r < rows-1 && !grid[r+1][c].visited) unvisited.add(grid[r+1][c]);
-            if (c > 0 && !grid[r][c-1].visited) unvisited.add(grid[r][c-1]);
-            
+
+            if (r > 0 && !grid[r-1][c].visited) //move up 
+            unvisited.add(grid[r-1][c]);
+
+            if (c < cols-1 && !grid[r][c+1].visited)//move right 
+             unvisited.add(grid[r][c+1]);
+
+            if (r < rows-1 && !grid[r+1][c].visited) //move down 
+            unvisited.add(grid[r+1][c]);
+
+            if (c > 0 && !grid[r][c-1].visited) //move left 
+            unvisited.add(grid[r][c-1]);
+
+            //choose random unvisited neighbor if any
             if (!unvisited.isEmpty()) {
                 Cell next = unvisited.get(rand.nextInt(unvisited.size()));
-                removeWall(current, next);
+                removeWall(current, next);//remove wall (carve path )between current and next cell
                 next.visited = true;
-                stack.push(next);
+                stack.push(next);//next becomes the current cell(moves forward )
             } else {
-                stack.pop();
+                stack.pop(); // backtrack
             }
         }
     }
-    
-    void removeWall(Cell a, Cell b) {
-        if (a.r == b.r) {
+
+    //crving path between two cells by removing walls
+     void removeWall(Cell a, Cell b) {
+        if (a.r == b.r) {//if both cells are in the same row
             if (a.c + 1 == b.c) {
-                a.wall[1] = false;
-                b.wall[3] = false;
-            } else if (a.c - 1 == b.c) {
-                a.wall[3] = false;
-                b.wall[1] = false;
-            }
-        } else if (a.c == b.c) {
-            if (a.r + 1 == b.r) {
-                a.wall[2] = false;
-                b.wall[0] = false;
-            } else if (a.r - 1 == b.r) {
-                a.wall[0] = false;
-                b.wall[2] = false;
-            }
+                 a.wall[1] = false; // a right
+                 b.wall[3] = false; //b left
+                } 
+            else if (a.c - 1 == b.c) {
+                 a.wall[3] = false;// a left
+                  b.wall[1] = false; // b right
+                } 
+        } else if (a.c == b.c) {//if both cells are in the same column
+            if (a.r + 1 == b.r) 
+            {
+                 a.wall[2] = false; // a bottom
+                b.wall[0] = false;// b top
+             } 
+            else if (a.r - 1 == b.r) { 
+                a.wall[0] = false;// a top
+                 b.wall[2] = false;// b bottom
+                 } 
         }
     }
-    
+
+    // BFS pathfinder (returns empty list if no path)
     List<Cell> findPath(int sr, int sc, int lr, int lc) {
         Queue<Cell> q = new LinkedList<>();
         boolean[][] visited = new boolean[rows][cols];
         Cell[][] parent = new Cell[rows][cols];
-        
-        q.add(grid[sr][sc]);
+
+        q.add(grid[sr][sc]);//starting cell added to queue
         visited[sr][sc] = true;
-        
+
         while (!q.isEmpty()) {
             Cell current = q.poll();
             int r = current.r;
             int c = current.c;
-            
+
             if (r == lr && c == lc) break;
-            
-            if (!current.wall[0] && r > 0 && !visited[r-1][c]) {
+
+            // explore neighbors if passage exists
+            if (!current.wall[0] && r > 0 && !visited[r-1][c]) {//up
                 visited[r-1][c] = true;
                 parent[r-1][c] = current;
                 q.add(grid[r-1][c]);
             }
-            if (!current.wall[1] && c < cols-1 && !visited[r][c+1]) {
+            if (!current.wall[1] && c < cols-1 && !visited[r][c+1]) {//right
                 visited[r][c+1] = true;
                 parent[r][c+1] = current;
                 q.add(grid[r][c+1]);
             }
-            if (!current.wall[2] && r < rows-1 && !visited[r+1][c]) {
+            if (!current.wall[2] && r < rows-1 && !visited[r+1][c]) {//down
                 visited[r+1][c] = true;
                 parent[r+1][c] = current;
                 q.add(grid[r+1][c]);
             }
-            if (!current.wall[3] && c > 0 && !visited[r][c-1]) {
+            if (!current.wall[3] && c > 0 && !visited[r][c-1]) {//left
                 visited[r][c-1] = true;
                 parent[r][c-1] = current;
                 q.add(grid[r][c-1]);
             }
         }
-        
+
+        // if goal wasn't reached, return empty path
+        if (! (lr >= 0 && lr < rows && lc >= 0 && lc < cols) ) return new ArrayList<>();
         if (!visited[lr][lc]) return new ArrayList<>();
-        
+
+        // reconstruct path
         List<Cell> path = new ArrayList<>();
         Cell cur = grid[lr][lc];
         while (cur != null && cur != grid[sr][sc]) {
@@ -1154,17 +1472,92 @@ class Maze {
         Collections.reverse(path);
         return path;
     }
+
+    // Count number of shortest paths from start to target (ADDED helper)
+    // Uses BFS to compute distances, then DP to count the number of shortest paths.
+    int countShortestPaths(int sr, int sc, int tr, int tc) {
+        // First, BFS to get distances
+        int[][] dist = new int[rows][cols];
+        for (int i=0;i<rows;i++) Arrays.fill(dist[i], Integer.MAX_VALUE);
+        Queue<Cell> q = new LinkedList<>();
+        dist[sr][sc] = 0;
+        q.add(grid[sr][sc]);
+        while (!q.isEmpty()) {
+            Cell cur = q.poll();
+            int r = cur.r, c = cur.c;
+            int d = dist[r][c];
+            // neighbors
+            if (!cur.wall[0] && r > 0 && dist[r-1][c] == Integer.MAX_VALUE) {
+                dist[r-1][c] = d + 1;
+                q.add(grid[r-1][c]);
+            }
+            if (!cur.wall[1] && c < cols-1 && dist[r][c+1] == Integer.MAX_VALUE) {
+                dist[r][c+1] = d + 1;
+                q.add(grid[r][c+1]);
+            }
+            if (!cur.wall[2] && r < rows-1 && dist[r+1][c] == Integer.MAX_VALUE) {
+                dist[r+1][c] = d + 1;
+                q.add(grid[r+1][c]);
+            }
+            if (!cur.wall[3] && c > 0 && dist[r][c-1] == Integer.MAX_VALUE) {
+                dist[r][c-1] = d + 1;
+                q.add(grid[r][c-1]);
+            }
+        }
+        if (dist[tr][tc] == Integer.MAX_VALUE) return 0;
+
+        // DP: count shortest paths
+        // Collect all cells by distance ascending
+        Map<Integer, List<Cell>> byDist = new HashMap<>();
+        int maxd = 0;
+        for (int r=0;r<rows;r++) for (int c=0;c<cols;c++) {
+            if (dist[r][c] < Integer.MAX_VALUE) {
+                byDist.computeIfAbsent(dist[r][c], k -> new ArrayList<>()).add(grid[r][c]);
+                maxd = Math.max(maxd, dist[r][c]);
+            }
+        }
+        long[][] paths = new long[rows][cols];
+        paths[sr][sc] = 1;
+        for (int d=0; d<=maxd; d++) {
+            List<Cell> list = byDist.get(d);
+            if (list == null) continue;
+            for (Cell cur : list) {
+                int r = cur.r, c = cur.c;
+                // propagate to neighbors with dist +1
+                if (!cur.wall[0] && r > 0 && dist[r-1][c] == dist[r][c] + 1) {
+                    paths[r-1][c] += paths[r][c];
+                }
+                if (!cur.wall[1] && c < cols-1 && dist[r][c+1] == dist[r][c] + 1) {
+                    paths[r][c+1] += paths[r][c];
+                }
+                if (!cur.wall[2] && r < rows-1 && dist[r+1][c] == dist[r][c] + 1) {
+                    paths[r+1][c] += paths[r][c];
+                }
+                if (!cur.wall[3] && c > 0 && dist[r][c-1] == dist[r][c] + 1) {
+                    paths[r][c-1] += paths[r][c];
+                }
+            }
+        }
+        // clamp to int safely
+        long result = paths[tr][tc];
+        if (result > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int)result;
+    }
 }
 
+
+//GUI components 
 class MazeFrame extends JFrame {
     private final MazePanel mazePanel;
-    private String playerName;
-    private boolean isPaused = false;
+    private String playerName;  // ADD THIS
+    private boolean isPaused = false;  // ADD THIS
     
-    MazeFrame(int rows, int cols, String playerName) {
-        this.playerName = playerName;
-        setTitle("Maze Adventure - " + playerName);
-        mazePanel = new MazePanel(rows, cols, playerName, this);
+    // MODIFIED CONSTRUCTOR - Add playerName parameter
+    MazeFrame(int rows, int cols, Difficulty difficulty, String playerName) {
+        this.playerName = playerName;  // ADD THIS
+        
+        setTitle("Maze Adventure - " + difficulty.name());
+        mazePanel = new MazePanel(rows, cols, difficulty, playerName, this); // Pass playerName & this
         
         setLayout(new BorderLayout());
         add(new JScrollPane(mazePanel), BorderLayout.CENTER);
@@ -1176,12 +1569,12 @@ class MazeFrame extends JFrame {
         // Key binding: R to randomize
         mazePanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("R"), "REFRESH");
         mazePanel.getActionMap().put("REFRESH", new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                mazePanel.randomize();
+            @Override public void actionPerformed(ActionEvent e) { 
+                mazePanel.randomize(); 
             }
         });
         
-        // Key binding: ESC to pause
+        // ADD THIS: Key binding for ESC to pause
         mazePanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "PAUSE");
         mazePanel.getActionMap().put("PAUSE", new AbstractAction() {
             public void actionPerformed(ActionEvent e) {
@@ -1192,6 +1585,7 @@ class MazeFrame extends JFrame {
         });
     }
     
+    // ADD THIS METHOD
     void showPauseMenu() {
         isPaused = true;
         mazePanel.setEnabled(false);
@@ -1204,10 +1598,855 @@ class MazeFrame extends JFrame {
         mazePanel.requestFocusInWindow();
     }
     
+    // ADD THIS METHOD
     boolean isPaused() {
         return isPaused;
     }
 }
+
+/**
+ * Main panel class that handles all game rendering and image management.
+ * Extends JPanel to provide custom painting and image handling capabilities.
+ */
+class MazePanel extends JPanel {
+    String playerName;           // ADD THIS
+    MazeFrame parentFrame;
+    // Game sprite images
+    private Image keyImage;         // Key pickup sprite
+    private Image doorImage;        // Exit door sprite
+    private Image playerIdle;       // Player standing still
+    private Image playerMove1;      // Player walking animation frame 1
+    private Image playerMove2;      // Player walking animation frame 2
+    private Image enemyImage;       // Enemy character sprite
+    private Image trapImage;        // Hazard/trap sprite
+    private Image treasureImage;    // Treasure chest sprite
+    
+    private boolean isWalking = false;
+    private boolean useFirstFrame = true;
+    
+    Maze maze;
+     int rows;
+     int  cols;
+     int margin = 10;
+     int playerRow = 0;
+     int playerCol = 0;
+    int score = 0;
+    double playerRotation = 0;
+    int lives = 3;
+    int keyRow = -1;
+    int keyCol = -1;
+    boolean hasKey = false;
+    int doorRow = -1;
+    int doorCol = -1;
+    boolean gameOver = false;
+
+    // New field: difficulty (ADDED)
+    private final Difficulty difficulty;
+
+    // Enemy class definition (kept same)
+    static class Enemy {
+        int r;
+        int c;
+        double rotation;
+        Cell lastPosition;
+        int stuckCounter;
+
+        Enemy(int r, int c) {
+            this.r = r;
+            this.c = c;
+            this.rotation = 0;
+            this.lastPosition = null;
+            this.stuckCounter = 0;
+        }
+        
+        void updateRotation(int newR, int newC) {
+            if (newR < r) rotation = 270;
+            else if (newR > r) rotation = 90;
+            else if (newC < c) rotation = 180;
+            else if (newC > c) rotation = 0;
+        }
+
+        //updating score
+        
+
+        boolean isStuck(Cell currentCell) {
+            if (lastPosition != null) {
+                int manhattanDistance = Math.abs(lastPosition.r - currentCell.r) + 
+                                      Math.abs(lastPosition.c - currentCell.c);
+                if (manhattanDistance <= 1) {
+                    stuckCounter++;
+                } else {
+                    stuckCounter = 0;
+                }
+            }
+            lastPosition = currentCell;
+            return stuckCounter > 3;
+        }
+    }
+    Enemy enemy = null;                 
+    Random enemyRand = new Random();
+
+    void updateScore() {
+    try (Connection conn = Connectivity.connectingToDatabase()) {
+        // Update score and games played
+        String query = "UPDATE game SET scores = scores + ?, number_of_games_played = number_of_games_played + 1 WHERE user = ?";
+        PreparedStatement pstmt = conn.prepareStatement(query);
+        pstmt.setInt(1, score);
+        pstmt.setString(2, playerName);
+        pstmt.executeUpdate();
+        System.out.println("Score updated for " + playerName);
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+    // MazePanel constructor now receives difficulty (MODIFIED)
+    MazePanel(int rows, int cols, Difficulty difficulty, String playerName, MazeFrame parentFrame) {
+    this.rows = rows; 
+    this.cols = cols;
+    this.difficulty = difficulty;
+    this.playerName = playerName;      // ADD THIS
+    this.parentFrame = parentFrame;    // ADD THIS
+        
+
+        // Load images (unchanged)
+        try {
+            File keyFile = new File("key2.png");
+            File doorFile = new File("door.png");
+            File idleFile = new File("player_idel.png");
+            File move1File = new File("player_move1.png");
+            File move2File = new File("player_move2.png");
+            File enemyFile = new File("enemy.png");
+            File trapFile = new File("trap.png");
+            File treasureFile = new File("treasure.png");
+            
+            if (keyFile.exists()) {
+                keyImage = ImageIO.read(keyFile);
+            }
+            if (doorFile.exists()) {
+                doorImage = ImageIO.read(doorFile);
+            }
+            if (idleFile.exists() && move1File.exists() && move2File.exists()) {
+                playerIdle = ImageIO.read(idleFile);
+                playerMove1 = ImageIO.read(move1File);
+                playerMove2 = ImageIO.read(move2File);
+            }
+            if (enemyFile.exists()) {
+                enemyImage = ImageIO.read(enemyFile);
+            }
+            if (trapFile.exists()) {
+                trapImage = ImageIO.read(trapFile);
+            }
+            if (treasureFile.exists()) {
+                treasureImage = ImageIO.read(treasureFile);
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading images: " + e.getMessage());
+        }
+        
+        randomize(); // generate initial maze according to difficulty
+        setBackground(Color.BLACK);
+        setPreferredSize(new Dimension(Math.max(400, cols * 24), Math.max(300, rows * 24 + 30)));
+    
+      // Player movement (arrows + WASD)
+        setFocusable(true);
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int key = e.getKeyCode();
+                if (lives <= 0 || gameOver) return;
+
+                switch (key) {
+                    case KeyEvent.VK_W:
+                    case KeyEvent.VK_UP:
+                        movePlayer(-1, 0);
+                        break;
+
+                    case KeyEvent.VK_S:
+                    case KeyEvent.VK_DOWN:
+                        movePlayer(1, 0);
+                        break;
+
+                    case KeyEvent.VK_A:
+                    case KeyEvent.VK_LEFT:
+                        movePlayer(0, -1);
+                        break;
+
+                    case KeyEvent.VK_D:
+                    case KeyEvent.VK_RIGHT:
+                        movePlayer(0, 1);
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        });
+
+    }
+     
+    // helper: place key at generation time (ensure not on trap/start/exit)
+    void placeInitialKey() {
+        keyRow = -1;
+        keyCol = -1;
+        Random r = new Random();
+        for (int i = 0; i < 500; i++) {
+            int rr = r.nextInt(rows);
+            int cc = r.nextInt(cols);
+            if ((rr == 0 && cc == 0) || (rr == doorRow && cc == doorCol)) continue;
+            Cell cell = maze.grid[rr][cc];
+            if (!cell.trap && !cell.treasure) {
+                keyRow = rr;
+                keyCol = cc;
+                break;
+            }
+        }
+    }
+
+    // Spawn enemy at the bottom-right corner
+    void spawnEnemy() {
+        int rr = rows - 1;
+        int cc = cols - 1;
+
+        Cell cell = maze.grid[rr][cc];
+        if (cell.wall[0] && cell.wall[1] && cell.wall[2] && cell.wall[3]) {
+            cell.wall[0] = false;
+        }
+
+        enemy = new Enemy(rr, cc);
+    }
+
+    // get accessible neighbors of a cell (N,E,S,W)
+    List<int[]> accessibleNeighbors(int r, int c) {
+        List<int[]> list = new ArrayList<>();
+        Cell cur = maze.grid[r][c];
+
+        if (!cur.wall[0] && r > 0) //up
+        list.add(new int[]{r-1, c});
+
+        if (!cur.wall[1] && c < cols-1) //right
+        list.add(new int[]{r, c+1});
+
+        if (!cur.wall[2] && r < rows-1)//down
+         list.add(new int[]{r+1, c});
+
+        if (!cur.wall[3] && c > 0)//left
+         list.add(new int[]{r, c-1});
+
+        return list;
+    }
+
+    /**
+     * Handles enemy movement with intelligence adjusted by difficulty (MODIFIED).
+     * EASY: deprioritize optimal move and favor randomness (enemy avoids player's path).
+     * MEDIUM: ~50% optimal, 50% random/suboptimal.
+     * HARD: mostly optimal (high chance of best move), small randomness.
+     */
+    void enemyMoveTick() {
+        if (enemy == null) return;
+
+        Cell currentCell = maze.grid[enemy.r][enemy.c];
+        boolean isStuck = enemy.isStuck(currentCell);
+
+        // Collect all valid moves from current position
+        List<Cell> possibleMoves = new ArrayList<>();
+        if (!currentCell.wall[0] && enemy.r > 0)
+            possibleMoves.add(maze.grid[enemy.r - 1][enemy.c]);
+        if (!currentCell.wall[1] && enemy.c < cols - 1)
+            possibleMoves.add(maze.grid[enemy.r][enemy.c + 1]);
+        if (!currentCell.wall[2] && enemy.r < rows - 1)
+            possibleMoves.add(maze.grid[enemy.r + 1][enemy.c]);
+        if (!currentCell.wall[3] && enemy.c > 0)
+            possibleMoves.add(maze.grid[enemy.r][enemy.c - 1]);
+
+        if (possibleMoves.isEmpty()) return;
+
+        // Get optimal path to player
+        List<Cell> bestPath = maze.findPath(enemy.r, enemy.c, playerRow, playerCol);
+        if (bestPath.size() <= 1) {
+            // No path to player exists; just pick random move
+            Cell chosen = possibleMoves.get(enemyRand.nextInt(possibleMoves.size()));
+            enemy.updateRotation(chosen.r, chosen.c);
+            enemy.r = chosen.r; enemy.c = chosen.c;
+            repaint();
+            return;
+        }
+
+        // Remove last position to avoid immediate backtracking if present
+        if (enemy.lastPosition != null) {
+            possibleMoves.remove(enemy.lastPosition);
+        }
+
+        Cell optimalNext = bestPath.get(1); // next step toward player
+        List<Cell> ratedMoves = new ArrayList<>();
+
+        // Add move ordering: put optimal first if available
+        if (possibleMoves.contains(optimalNext)) ratedMoves.add(optimalNext);
+        // add other moves that still lead to player (suboptimal)
+        for (Cell m : possibleMoves) {
+            if (m != optimalNext) {
+                List<Cell> alt = maze.findPath(m.r, m.c, playerRow, playerCol);
+                if (!alt.isEmpty()) ratedMoves.add(m);
+            }
+        }
+        // remaining moves last
+        for (Cell m : possibleMoves) if (!ratedMoves.contains(m)) ratedMoves.add(m);
+
+        if (ratedMoves.isEmpty()) return;
+
+        Cell chosenMove;
+        double chance = enemyRand.nextDouble();
+
+        // Difficulty-adjusted probabilities (MODIFIED)
+        double optProb; // probability to select optimal move
+        double subProb; // probability to select second-best/suboptimal
+        switch (difficulty) {
+            case EASY:
+                // Enemy avoids player's path: very low optimal probability
+                optProb = 0.20;
+                subProb = 0.30;
+                break;
+            case MEDIUM:
+                // Balanced 50/50
+                optProb = 0.50;
+                subProb = 0.30;
+                break;
+            case HARD:
+            default:
+                // Hard is smart: high optimal probability
+                optProb = 0.85;
+                subProb = 0.10;
+                break;
+        }
+
+        if (isStuck) {
+            // stuck => increase randomness a bit to break loops
+            if (chance < 0.5) chosenMove = ratedMoves.get(enemyRand.nextInt(ratedMoves.size()));
+            else chosenMove = ratedMoves.get(0);
+        } else {
+            if (chance < optProb && ratedMoves.contains(optimalNext)) {
+                chosenMove = optimalNext;
+            } else if (chance < optProb + subProb && ratedMoves.size() > 1) {
+                int idx = Math.min(1, ratedMoves.size()-1);
+                chosenMove = ratedMoves.get(idx);
+            } else {
+                chosenMove = ratedMoves.get(ratedMoves.size()-1);
+            }
+        }
+
+        // For EASY mode: extra rule "enemy should not choose the same path as the user"
+        // We interpret this as: avoid moving into the cell the player *just moved into* if possible.
+        // We attempt to avoid player's current cell only when difficulty is EASY and there is an alternative.
+        if (difficulty == Difficulty.EASY) {
+            // If chosenMove equals player's position and an alternative exists, pick alternative
+            if (chosenMove.r == playerRow && chosenMove.c == playerCol) {
+                for (Cell alt : ratedMoves) {
+                    if (alt.r != playerRow || alt.c != playerCol) {
+                        chosenMove = alt;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Execute chosen move
+        enemy.updateRotation(chosenMove.r, chosenMove.c);
+        enemy.r = chosenMove.r; enemy.c = chosenMove.c;
+
+        // If enemy catches the player
+        if (enemy.r == playerRow && enemy.c == playerCol) {
+            JOptionPane.showMessageDialog(this, "💀 Enemy caught you!");
+            lives--;
+            if (lives <= 0) {
+                gameOver = true;
+                int opt = JOptionPane.showConfirmDialog(
+                    this,
+                    "Game Over! Play again?",
+                    "Game Over",
+                    JOptionPane.YES_NO_OPTION
+                );
+                if (opt == JOptionPane.YES_OPTION) {
+                    randomize();
+                }
+            } else {
+                playerRow = 0;
+                playerCol = 0;
+            }
+        }
+
+        repaint();
+    }
+   
+
+    // candidate helper for enemy decisions
+    static class Candidate {
+        int r;
+        int c;
+        int len;
+
+        Candidate(int r,int c,int len){
+             this.r=r; 
+             this.c=c; 
+             this.len=len; 
+        }
+    }
+
+    // regenerate with a fresh RNG and ensure door/path/traps per your rules (MODIFIED)
+    void randomize() {
+        this.maze = new Maze(rows, cols);
+        this.maze.generate();
+
+        // pick a random door location ensuring there is at least some path
+        Random r = new Random();
+        List<Cell> path = new ArrayList<>();
+        int i = 0;
+        do {
+            doorRow = r.nextInt(rows);
+            doorCol = r.nextInt(cols);
+            if (doorRow == 0 && doorCol == 0) continue;
+            path = maze.findPath(0, 0, doorRow, doorCol);
+            i++;
+            if (i > 1000) break; // fallback
+        } while (path.isEmpty());
+
+        // clear previous traps/treasures
+        for (int rr = 0; rr < rows; rr++) {
+            for (int cc = 0; cc < cols; cc++) {
+                maze.grid[rr][cc].trap = false;
+                maze.grid[rr][cc].treasure = false;
+            }
+        }
+
+        // place traps/treasures OFF the chosen safe path
+        Set<Cell> pathSet = new HashSet<>(path);
+        for (int rr = 0; rr < rows; rr++) {
+            for (int cc = 0; cc < cols; cc++) {
+                Cell cell = maze.grid[rr][cc];
+                if (rr == 0 && cc == 0) continue;
+                if (rr == doorRow && cc == doorCol) continue;
+                if (pathSet.contains(cell)) continue;
+                double p = r.nextDouble();
+                if (p < 0.15) cell.trap = true;
+                else if (p < 0.25) cell.treasure = true;
+            }
+        }
+
+        // allow exactly one trap on the path to make it non-obvious (kept)
+        if (path.size() > 2) {
+            List<Cell> innerPath = new ArrayList<>(path);
+            innerPath.remove(0);
+            innerPath.remove(innerPath.size()-1);
+            if (!innerPath.isEmpty()) {
+                Cell chosen = innerPath.get(r.nextInt(innerPath.size()));
+                chosen.trap = true;
+            }
+        }
+
+        // === NEW: Create loops to increase the number of shortest paths ===
+        // targetPaths depends on difficulty:
+        int targetPaths;
+        switch (difficulty) {
+            case EASY: targetPaths = 5; break;
+            case MEDIUM: targetPaths = 3; break;
+            case HARD: default: targetPaths = 2; break;
+        }
+
+        // Count current number of shortest paths
+        int currentPaths = maze.countShortestPaths(0, 0, doorRow, doorCol);
+        // We'll attempt to remove some walls (create "passages") that increase the
+        // number of shortest paths. We try up to a limited number of attempts.
+        int attempts = 0;
+        int maxAttempts = 600; // safety cap
+        while (currentPaths < targetPaths && attempts < maxAttempts) {
+            attempts++;
+            // pick a random cell not equal to start or goal
+            int ar = r.nextInt(rows);
+            int ac = r.nextInt(cols);
+            if (ar == 0 && ac == 0) continue;
+            if (ar == doorRow && ac == doorCol) continue;
+            Cell A = maze.grid[ar][ac];
+
+            // choose a neighbor direction randomly
+            List<int[]> neigh = new ArrayList<>();
+            if (ar > 0) neigh.add(new int[]{ar-1, ac});
+            if (ac < cols-1) neigh.add(new int[]{ar, ac+1});
+            if (ar < rows-1) neigh.add(new int[]{ar+1, ac});
+            if (ac > 0) neigh.add(new int[]{ar, ac-1});
+            if (neigh.isEmpty()) continue;
+            int[] pick = neigh.get(r.nextInt(neigh.size()));
+            Cell B = maze.grid[pick[0]][pick[1]];
+
+            // If they are already connected, skip
+            boolean alreadyConnected = false;
+            if (A.r == B.r) {
+                if (A.c + 1 == B.c) alreadyConnected = !A.wall[1];
+                else if (A.c - 1 == B.c) alreadyConnected = !A.wall[3];
+            } else if (A.c == B.c) {
+                if (A.r + 1 == B.r) alreadyConnected = !A.wall[2];
+                else if (A.r - 1 == B.r) alreadyConnected = !A.wall[0];
+            }
+            if (alreadyConnected) continue;
+
+            // Create a loop by removing the wall between A and B
+            maze.removeWall(A, B);
+
+            // Recompute count
+            int newCount = maze.countShortestPaths(0, 0, doorRow, doorCol);
+            if (newCount >= currentPaths) {
+                // Accept the change (it may or may not have increased short paths)
+                currentPaths = newCount;
+            } else {
+                // If the change somehow decreased count (unlikely), revert (re-add wall)
+                // Re-adding wall: set walls as if A and B not connected.
+                // Determine relation and re-block
+                if (A.r == B.r) {
+                    if (A.c + 1 == B.c) { A.wall[1] = true; B.wall[3] = true; }
+                    else if (A.c - 1 == B.c) { A.wall[3] = true; B.wall[1] = true; }
+                } else if (A.c == B.c) {
+                    if (A.r + 1 == B.r) { A.wall[2] = true; B.wall[0] = true; }
+                    else if (A.r - 1 == B.r) { A.wall[0] = true; B.wall[2] = true; }
+                }
+            }
+        }
+        // Note: it's possible we cannot reach exact targetPaths; this loop attempts to
+        // increase the number of shortest paths to at least the target by creating
+        // extra connections (loops). This approach is conservative and tries not to
+        // break your core maze generation logic.
+
+        // place the key (visible from start) while ensuring it's not on trap/door/start
+        placeInitialKey();
+
+        // reset player state
+        playerRow = 0;
+        playerCol = 0;
+        score = 0;
+        lives = 3;
+        hasKey = false;
+        gameOver = false;
+        spawnEnemy();
+
+        repaint();
+    }
+
+     void movePlayer(int dr, int dc) {
+        // Update player rotation based on input direction
+        if (dr == -1) playerRotation = 0;
+        else if (dr == 1) playerRotation = 180;
+        else if (dc == -1) playerRotation = 270;
+        else if (dc == 1) playerRotation = 90;
+        
+        repaint();
+
+        int newR = playerRow + dr;
+        int newC = playerCol + dc;
+        if (newR < 0 || newR >= rows || newC < 0 || newC >= cols) return;
+
+        Cell cur = maze.grid[playerRow][playerCol];
+        Cell next = maze.grid[newR][newC];
+
+        // Check walls before moving
+        if (dr == -1 && cur.wall[0]) return; // top blocked
+        if (dr == 1 && cur.wall[2]) return; // bottom blocked
+        if (dc == -1 && cur.wall[3]) return; // left blocked
+        if (dc == 1 && cur.wall[1]) return; // right blocked
+
+        playerRow = newR;
+        playerCol = newC;
+        
+        isWalking = true;
+        useFirstFrame = !useFirstFrame;
+        repaint();
+        
+        javax.swing.Timer walkTimer = new javax.swing.Timer(200, e -> {
+            useFirstFrame = !useFirstFrame;
+            repaint();
+        });
+        walkTimer.start();
+        
+        javax.swing.Timer stopTimer = new javax.swing.Timer(400, e -> {
+            isWalking = false;
+            walkTimer.stop();
+            ((javax.swing.Timer)e.getSource()).stop();
+            repaint();
+        });
+        stopTimer.setRepeats(false);
+        stopTimer.start();
+    
+        // check traps/treasures
+        if (next.trap) {
+    lives--;
+    next.trap = false;
+    if (lives <= 0) {
+        gameOver = true;
+        JOptionPane.showMessageDialog(this, "Game Over! You ran out of lives.\nFinal Score: " + score);
+        
+        int opt = JOptionPane.showConfirmDialog(this,
+            "Play again?",
+            "Game Over",
+            JOptionPane.YES_NO_OPTION);
+        
+        if (opt == JOptionPane.YES_OPTION) {
+            randomize();
+        } else {
+            parentFrame.dispose();
+            new EnhancedMainMenu(playerName);
+        }
+        return;
+    }
+    showQuickMessage(" Trap! Life lost. Lives: " + lives, new Color(231, 76, 60));
+} else if (next.treasure) {
+    score += 10;
+    next.treasure = false;
+    showQuickMessage(" Treasure! +10 points", new Color(241, 196, 15));
+}
+        // Enemy moves after player moves
+        enemyMoveTick();
+
+        // check key pickup (visible from start)
+        if (keyRow >= 0 && keyCol >= 0 && playerRow == keyRow && playerCol == keyCol) {
+            hasKey = true;
+            keyRow = -1; 
+            keyCol = -1;
+            JOptionPane.showMessageDialog(this, "You found the Key! The Door will now appear at the exit.");
+        }
+
+        // check door only when player has the key
+        if (hasKey && doorRow >= 0 && doorCol >= 0 && playerRow == doorRow && playerCol == doorCol) {
+    gameOver = true;
+    updateScore();  // ADD THIS LINE
+    
+    int opt = JOptionPane.showConfirmDialog(
+        this,
+        "🎉 VICTORY!\nFinal Score: " + score + "\n\nPlay again?",
+        "You Win!",
+        JOptionPane.YES_NO_OPTION
+    );
+    
+    if (opt == JOptionPane.YES_OPTION) {
+        randomize();
+    } else {
+        // Return to main menu
+        parentFrame.dispose();
+        new EnhancedMainMenu(playerName);
+    }
+    return;
+}
+
+
+        repaint();
+    }
+
+    /**
+ * Shows a quick auto-disappearing message overlay
+ * @param message Text to display
+ * @param color Border and text color
+ */
+void showQuickMessage(String message, Color color) {
+    JDialog dialog = new JDialog((JFrame)SwingUtilities.getWindowAncestor(this), false);
+    dialog.setUndecorated(true);
+    dialog.setSize(400, 80);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Semi-transparent dark background
+            g2.setColor(new Color(20, 20, 40, 240));
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 25, 25);
+            
+            // Colored border
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(3));
+            g2.drawRoundRect(3, 3, getWidth() - 6, getHeight() - 6, 22, 22);
+        }
+    };
+    panel.setLayout(new BorderLayout());
+    
+    JLabel label = new JLabel(message, SwingConstants.CENTER);
+    label.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    label.setForeground(color);
+    panel.add(label);
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+    
+    // Auto-close after 1 second (change to 500 for 0.5 seconds)
+    Timer closeTimer = new Timer(1000, e -> dialog.dispose());
+    closeTimer.setRepeats(false);
+    closeTimer.start();
+    
+    // Allow ENTER key to dismiss immediately
+    dialog.addKeyListener(new KeyAdapter() {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                closeTimer.stop();
+                dialog.dispose();
+            }
+        }
+    });
+    
+    // Make dialog focusable
+    dialog.setFocusable(true);
+    dialog.requestFocus();
+}
+
+ /**
+  * Main rendering method that draws the entire game state.
+  */
+ @Override protected void paintComponent(Graphics g) {
+    super.paintComponent(g);
+    
+    int w = getWidth() - 2 * margin;
+    int h = getHeight() - 2 * margin - 30;
+    int cellSize = Math.max(6, Math.min(w / Math.max(1, cols), h / Math.max(1, rows)));
+
+    Graphics2D g2 = (Graphics2D) g.create();
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+    int offsetX = margin + (w - cellSize * cols) / 2;
+    int offsetY = margin + (h - cellSize * rows) / 2;
+
+    // draw cells walls
+    g2.setColor(Color.WHITE);
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            Cell cell = maze.grid[r][c];
+            int x = offsetX + c * cellSize;
+            int y = offsetY + r * cellSize;
+            if (cell.wall[0]) g2.drawLine(x, y, x + cellSize, y); // top
+            if (cell.wall[1]) g2.drawLine(x + cellSize, y, x + cellSize, y + cellSize); // right
+            if (cell.wall[2]) g2.drawLine(x, y + cellSize, x + cellSize, y + cellSize); // bottom
+            if (cell.wall[3]) g2.drawLine(x, y, x, y + cellSize); // left
+
+            // draw traps and treasures
+            if (cell.trap) {
+                if (trapImage != null) {
+                    int imgSize = (int)(cellSize * 0.9);
+                    int imgX = x + (cellSize - imgSize) / 2;
+                    int imgY = y + (cellSize - imgSize) / 2;
+                    g2.drawImage(trapImage, imgX, imgY, imgSize, imgSize, null);
+                } else {
+                    g2.setColor(new Color(255, 0, 0, 150));
+                    g2.fillRect(x + cellSize/4, y + cellSize/4, cellSize/2, cellSize/2);
+                    g2.setColor(Color.WHITE);
+                }
+            } else if (cell.treasure) {
+                if (treasureImage != null) {
+                    int imgSize = (int)(cellSize * 0.9);
+                    int imgX = x + (cellSize - imgSize) / 2;
+                    int imgY = y + (cellSize - imgSize) / 2;
+                    g2.drawImage(treasureImage, imgX, imgY, imgSize, imgSize, null);
+                } else {
+                    g2.setColor(new Color(255, 215, 0, 150));
+                    g2.fillRect(x + cellSize/4, y + cellSize/4, cellSize/2, cellSize/2);
+                    g2.setColor(Color.WHITE);
+                }
+            }
+        }
+    }
+
+    // draw door (after key)
+    if (hasKey && doorRow >= 0 && doorCol >= 0) {
+        int dx = offsetX + doorCol * cellSize;
+        int dy = offsetY + doorRow * cellSize;
+        
+        if (doorImage != null) {
+            int imgSize = (int)(cellSize * 0.9);
+            int imgX = dx + (cellSize - imgSize) / 2;
+            int imgY = dy + (cellSize - imgSize) / 2;
+            g2.drawImage(doorImage, imgX, imgY, imgSize, imgSize, null);
+        } else {
+            g2.setColor(new Color(218, 165, 32));
+            g2.fillRect(dx + cellSize/4, dy + cellSize/4, cellSize/2, cellSize/2);
+            g2.setColor(Color.WHITE);
+        }
+    }
+
+    // draw key (visible from the start)
+    if (keyRow >= 0 && keyCol >= 0) {
+        int kx = offsetX + keyCol * cellSize;
+        int ky = offsetY + keyRow * cellSize;
+        if (keyImage != null) {
+            int imgSize = (int)(cellSize * 0.9);
+            int imgX = kx + (cellSize - imgSize) / 2;
+            int imgY = ky + (cellSize - imgSize) / 2;
+            g2.drawImage(keyImage, imgX, imgY, imgSize, imgSize, null);
+        } else {
+            g2.setColor(new Color(255, 215, 0));
+            g2.fillOval(kx + cellSize/4, ky + cellSize/4, cellSize/2, cellSize/2);
+            g2.setColor(Color.WHITE);
+        }
+    }
+
+    // draw player
+    int px = offsetX + playerCol * cellSize;
+    int py = offsetY + playerRow * cellSize;
+    
+    if (playerIdle != null && playerMove1 != null && playerMove2 != null) {
+        int imgSize = (int)(cellSize * 0.9);
+        int imgX = px + (cellSize - imgSize) / 2;
+        int imgY = py + (cellSize - imgSize) / 2;
+        
+        AffineTransform oldTransform = g2.getTransform();
+        g2.translate(imgX + imgSize/2, imgY + imgSize/2);
+        g2.rotate(Math.toRadians(playerRotation));
+        
+        Image currentFrame;
+        if (isWalking) {
+            currentFrame = useFirstFrame ? playerMove1 : playerMove2;
+        } else {
+            currentFrame = playerIdle;
+        }
+        
+        g2.drawImage(currentFrame, -imgSize/2, -imgSize/2, imgSize, imgSize, null);
+        g2.setTransform(oldTransform);
+    } else {
+        g2.setColor(new Color(0, 255, 255));
+        g2.fillOval(px + cellSize/4, py + cellSize/4, cellSize/2, cellSize/2);
+    }
+
+    // draw enemy
+    if (enemy != null) {
+        int ex = offsetX + enemy.c * cellSize;
+        int ey = offsetY + enemy.r * cellSize;
+        if (enemyImage != null) {
+            int imgSize = (int)(cellSize * 0.9);
+            int imgX = ex + (cellSize - imgSize) / 2;
+            int imgY = ey + (cellSize - imgSize) / 2;
+            
+            AffineTransform oldTransform = g2.getTransform();
+            g2.translate(imgX + imgSize/2, imgY + imgSize/2);
+            g2.rotate(Math.toRadians(enemy.rotation));
+            g2.drawImage(enemyImage, -imgSize/2, -imgSize/2, imgSize, imgSize, null);
+            g2.setTransform(oldTransform);
+        } else {
+            g2.setColor(new Color(70, 0, 0));
+            g2.fillOval(ex + cellSize/4, ey + cellSize/4, cellSize/2, cellSize/2);
+            g2.setColor(Color.WHITE);
+        }
+    }
+
+    // HUD (scoreboard area)
+    g2.setColor(Color.DARK_GRAY);
+    g2.fillRect(0, getHeight() - 30, getWidth(), 30);
+
+    g2.setColor(Color.WHITE);
+    g2.setFont(new Font("Consolas", Font.BOLD, 16));
+    String hud = String.format("Score: %d   Lives: %d   Difficulty: %s", score, lives, difficulty.name());
+    FontMetrics fm = g2.getFontMetrics();
+
+    int textWidth = fm.stringWidth(hud);
+    g2.drawString(hud, (getWidth() - textWidth) / 2, getHeight() - 10);
+
+    g2.dispose();
+}
+}
+
+
 
 // ═══════════════════════════════════════════════════════════════
 // BEAUTIFUL PAUSE MENU DIALOG
@@ -1401,616 +2640,3 @@ class PauseMenuDialog extends JDialog {
         }
     }
 }
-
-class MazePanel extends JPanel {
-    private Image keyImage, doorImage, playerIdle, playerMove1, playerMove2;
-    private Image enemyImage, trapImage, treasureImage;
-    private boolean isWalking = false;
-    private boolean useFirstFrame = true;
-    
-    Maze maze;
-    int rows, cols;
-    int margin = 10;
-    int playerRow = 0, playerCol = 0;
-    int score = 0;
-    double playerRotation = 0;
-    int lives = 3;
-    int keyRow = -1, keyCol = -1;
-    boolean hasKey = false;
-    int doorRow = -1, doorCol = -1;
-    boolean gameOver = false;
-    String playerName;
-    
-    static class Enemy {
-        int r, c;
-        double rotation;
-        Cell lastPosition;
-        int stuckCounter;
-        
-        Enemy(int r, int c) {
-            this.r = r;
-            this.c = c;
-            this.rotation = 0;
-            this.lastPosition = null;
-            this.stuckCounter = 0;
-        }
-        
-        void updateRotation(int newR, int newC) {
-            if (newR < r) rotation = 270;
-            else if (newR > r) rotation = 90;
-            else if (newC < c) rotation = 180;
-            else if (newC > c) rotation = 0;
-        }
-        
-        boolean isStuck(Cell currentCell) {
-            if (lastPosition != null) {
-                int manhattanDistance = Math.abs(lastPosition.r - currentCell.r) + 
-                                      Math.abs(lastPosition.c - currentCell.c);
-                if (manhattanDistance <= 1) {
-                    stuckCounter++;
-                } else {
-                    stuckCounter = 0;
-                }
-            }
-            lastPosition = currentCell;
-            return stuckCounter > 3;
-        }
-    }
-    
-    Enemy enemy = null;
-    Random enemyRand = new Random();
-    MazeFrame parentFrame;
-    
-    MazePanel(int rows, int cols, String playerName, MazeFrame parentFrame) {
-        this.rows = rows;
-        this.cols = cols;
-        this.playerName = playerName;
-        this.parentFrame = parentFrame;
-        
-        try {
-            File keyFile = new File("key2.png");
-            File doorFile = new File("door.png");
-            File idleFile = new File("player_idel.png");
-            File move1File = new File("player_move1.png");
-            File move2File = new File("player_move2.png");
-            File enemyFile = new File("enemy.png");
-            File trapFile = new File("trap.png");
-            File treasureFile = new File("treasure.png");
-            
-            if (keyFile.exists()) keyImage = ImageIO.read(keyFile);
-            if (doorFile.exists()) doorImage = ImageIO.read(doorFile);
-            if (idleFile.exists()) playerIdle = ImageIO.read(idleFile);
-            if (move1File.exists()) playerMove1 = ImageIO.read(move1File);
-            if (move2File.exists()) playerMove2 = ImageIO.read(move2File);
-            if (enemyFile.exists()) enemyImage = ImageIO.read(enemyFile);
-            if (trapFile.exists()) trapImage = ImageIO.read(trapFile);
-            if (treasureFile.exists()) treasureImage = ImageIO.read(treasureFile);
-        } catch (IOException e) {
-            System.err.println("Error loading images: " + e.getMessage());
-        }
-        
-        randomize();
-        setBackground(Color.BLACK);
-        setPreferredSize(new Dimension(Math.max(400, cols * 24), Math.max(300, rows * 24 + 30)));
-        
-        setFocusable(true);
-        addKeyListener(new KeyAdapter() {
-            public void keyPressed(KeyEvent e) {
-                int key = e.getKeyCode();
-                if (lives <= 0 || gameOver) return;
-                
-                switch (key) {
-                    case KeyEvent.VK_W:
-                    case KeyEvent.VK_UP:
-                        movePlayer(-1, 0);
-                        break;
-                    case KeyEvent.VK_S:
-                    case KeyEvent.VK_DOWN:
-                        movePlayer(1, 0);
-                        break;
-                    case KeyEvent.VK_A:
-                    case KeyEvent.VK_LEFT:
-                        movePlayer(0, -1);
-                        break;
-                    case KeyEvent.VK_D:
-                    case KeyEvent.VK_RIGHT:
-                        movePlayer(0, 1);
-                        break;
-                }
-            }
-        });
-    }
-    
-    void placeInitialKey() {
-        keyRow = -1;
-        keyCol = -1;
-        Random r = new Random();
-        for (int i = 0; i < 500; i++) {
-            int rr = r.nextInt(rows);
-            int cc = r.nextInt(cols);
-            if ((rr == 0 && cc == 0) || (rr == doorRow && cc == doorCol)) continue;
-            Cell cell = maze.grid[rr][cc];
-            if (!cell.trap && !cell.treasure) {
-                keyRow = rr;
-                keyCol = cc;
-                break;
-            }
-        }
-    }
-    
-    void spawnEnemy() {
-        int rr = rows - 1;
-        int cc = cols - 1;
-        Cell cell = maze.grid[rr][cc];
-        if (cell.wall[0] && cell.wall[1] && cell.wall[2] && cell.wall[3]) {
-            cell.wall[0] = false;
-        }
-        enemy = new Enemy(rr, cc);
-    }
-    
-    void enemyMoveTick() {
-        if (enemy == null) return;
-        
-        Cell currentCell = maze.grid[enemy.r][enemy.c];
-        boolean isStuck = enemy.isStuck(currentCell);
-        
-        List<Cell> possibleMoves = new ArrayList<>();
-        
-        if (!currentCell.wall[0] && enemy.r > 0)
-            possibleMoves.add(maze.grid[enemy.r - 1][enemy.c]);
-        if (!currentCell.wall[1] && enemy.c < cols - 1)
-            possibleMoves.add(maze.grid[enemy.r][enemy.c + 1]);
-        if (!currentCell.wall[2] && enemy.r < rows - 1)
-            possibleMoves.add(maze.grid[enemy.r + 1][enemy.c]);
-        if (!currentCell.wall[3] && enemy.c > 0)
-            possibleMoves.add(maze.grid[enemy.r][enemy.c - 1]);
-        
-        if (possibleMoves.isEmpty()) return;
-        
-        List<Cell> bestPath = maze.findPath(enemy.r, enemy.c, playerRow, playerCol);
-        if (bestPath.size() <= 1) return;
-        
-        if (enemy.lastPosition != null) {
-            possibleMoves.remove(enemy.lastPosition);
-        }
-        
-        List<Cell> ratedMoves = new ArrayList<>();
-        Cell bestMove = bestPath.get(1);
-        
-        if (possibleMoves.contains(bestMove)) {
-            ratedMoves.add(bestMove);
-        }
-        
-        for (Cell move : possibleMoves) {
-            if (move != bestMove) {
-                List<Cell> altPath = maze.findPath(move.r, move.c, playerRow, playerCol);
-                if (!altPath.isEmpty()) {
-                    ratedMoves.add(move);
-                }
-            }
-        }
-        
-        for (Cell move : possibleMoves) {
-            if (!ratedMoves.contains(move)) {
-                ratedMoves.add(move);
-            }
-        }
-        
-        if (ratedMoves.isEmpty()) return;
-        
-        Cell chosenMove;
-        double chance = enemyRand.nextDouble();
-        
-        if (isStuck) {
-            if (chance < 0.4) {
-                chosenMove = ratedMoves.get(enemyRand.nextInt(ratedMoves.size()));
-            } else {
-                chosenMove = ratedMoves.get(0);
-            }
-        } else {
-            if (chance < 0.75) {
-                chosenMove = ratedMoves.get(0);
-            } else if (chance < 0.9 && ratedMoves.size() > 1) {
-                int midIndex = Math.min(1, ratedMoves.size() - 1);
-                chosenMove = ratedMoves.get(midIndex);
-            } else {
-                chosenMove = ratedMoves.get(ratedMoves.size() - 1);
-            }
-        }
-        
-        enemy.updateRotation(chosenMove.r, chosenMove.c);
-        enemy.r = chosenMove.r;
-        enemy.c = chosenMove.c;
-        
-        if (enemy.r == playerRow && enemy.c == playerCol) {
-            JOptionPane.showMessageDialog(this, "💀 Enemy caught you!");
-            lives--;
-            if (lives <= 0) {
-                gameOver = true;
-                int opt = JOptionPane.showConfirmDialog(this, "Game Over! Play again?",
-                    "Game Over", JOptionPane.YES_NO_OPTION);
-                if (opt == JOptionPane.YES_OPTION) {
-                    randomize();
-                }
-                ///what about no logic????
-            } else {
-                playerRow = 0;
-                playerCol = 0;
-            }
-        }
-        
-        repaint();
-    }
-    
-    void randomize() {
-        this.maze = new Maze(rows, cols);
-        this.maze.generate();
-        
-        Random r = new Random();
-        List<Cell> path = new ArrayList<>();
-        
-        int i = 0;
-        do {
-            doorRow = r.nextInt(rows);
-            doorCol = r.nextInt(cols);
-            if (doorRow == 0 && doorCol == 0) continue;
-            path = maze.findPath(0, 0, doorRow, doorCol);
-            i++;
-            if (i > 1000) break;
-        } while (path.isEmpty());
-        
-        for (int rr = 0; rr < rows; rr++) {
-            for (int cc = 0; cc < cols; cc++) {
-                maze.grid[rr][cc].trap = false;
-                maze.grid[rr][cc].treasure = false;
-            }
-        }
-        
-        Set<Cell> pathSet = new HashSet<>(path);
-        for (int rr = 0; rr < rows; rr++) {
-            for (int cc = 0; cc < cols; cc++) {
-                Cell cell = maze.grid[rr][cc];
-                if (rr == 0 && cc == 0) continue;
-                if (rr == doorRow && cc == doorCol) continue;
-                if (pathSet.contains(cell)) continue;
-                double p = r.nextDouble();
-                if (p < 0.15) cell.trap = true;
-                else if (p < 0.25) cell.treasure = true;
-            }
-        }
-        
-        if (path.size() > 2) {
-            List<Cell> innerPath = new ArrayList<>(path);
-            innerPath.remove(0);
-            innerPath.remove(innerPath.size()-1);
-            if (!innerPath.isEmpty()) {
-                Cell chosen = innerPath.get(r.nextInt(innerPath.size()));
-                chosen.trap = true;
-            }
-        }
-        
-        placeInitialKey();
-        
-        playerRow = 0;
-        playerCol = 0;
-        score = 0;
-        lives = 3;
-        hasKey = false;
-        gameOver = false;
-        spawnEnemy();
-        
-        repaint();
-    }
-    
-    void movePlayer(int dr, int dc) {
-        // Update player rotation based on input direction, before movement checks
-        if (dr == -1) playerRotation = 0;        // facing up
-        else if (dr == 1) playerRotation = 180;  // facing down
-        else if (dc == -1) playerRotation = 270; // facing left
-        else if (dc == 1) playerRotation = 90;   // facing right
-        
-        // Always redraw to show new rotation, even if we can't move
-        repaint();
-
-        int newR = playerRow + dr;
-        int newC = playerCol + dc;
-        if (newR < 0 || newR >= rows || newC < 0 || newC >= cols) return;
-
-        Cell cur = maze.grid[playerRow][playerCol];
-        Cell next = maze.grid[newR][newC];
-
-        // Check walls before moving
-        if (dr == -1 && cur.wall[0]) return; // top blocked
-        if (dr == 1 && cur.wall[2]) return; // bottom blocked
-        if (dc == -1 && cur.wall[3]) return; // left blocked
-        if (dc == 1 && cur.wall[1]) return; // right blocked
-
-        playerRow = newR;
-        playerCol = newC;
-        
-        // Update animation state - only when actually moving
-        isWalking = true;
-        useFirstFrame = !useFirstFrame; // Switch animation frame
-        
-        // Schedule a repaint to show the walking animation
-        repaint();
-        
-        if (next.trap) {
-            lives--;
-            next.trap = false;
-            
-            if (lives <= 0) {
-                gameOver = true;
-                JOptionPane.showMessageDialog(this, "💀 Game Over! You ran out of lives.\nFinal Score: " + score);
-                
-                int opt = JOptionPane.showConfirmDialog(this,
-                    "Play again?",
-                    "Game Over",
-                    JOptionPane.YES_NO_OPTION);
-                
-                if (opt == JOptionPane.YES_OPTION) {
-                    randomize();
-                } else {
-                    // Return to main menu
-                    parentFrame.dispose();
-                    new EnhancedMainMenu(playerName);
-                }
-                return;
-            }
-            JOptionPane.showMessageDialog(this, "⚠ You hit a trap! Lives remaining: " + lives);
-        } else if (next.treasure) {
-            score += 10;
-            next.treasure = false;
-            JOptionPane.showMessageDialog(this, "You found a treasure! +10 points!");
-        }
-        
-        enemyMoveTick();
-        
-        if (keyRow >= 0 && keyCol >= 0 && playerRow == keyRow && playerCol == keyCol) {
-            hasKey = true;
-            keyRow = -1;
-            keyCol = -1;
-            JOptionPane.showMessageDialog(this, "You found the Key! The Door will now appear at the exit.");
-        }
-        
-        if (hasKey && doorRow >= 0 && doorCol >= 0 && playerRow == doorRow && playerCol == doorCol) {
-            gameOver = true;
-            updateScore();
-            
-            int opt = JOptionPane.showConfirmDialog(this,
-                "🎉 VICTORY!\nFinal Score: " + score + "\n\nPlay again?",
-                "You Win!",
-                JOptionPane.YES_NO_OPTION);
-            
-            if (opt == JOptionPane.YES_OPTION) {
-                randomize();
-            } else {
-                // Return to main menu
-                parentFrame.dispose();
-                new EnhancedMainMenu(playerName);
-            }
-            return;
-        }
-        
-        repaint();
-    }
-    
-    void updateScore() {
-        try (Connection conn = Connectivity.connectingToDatabase()) {
-            // Update score and games played
-            String query = "UPDATE game SET scores = scores + ?, number_of_games_played = number_of_games_played + 1 WHERE user = ?";
-            PreparedStatement pstmt = conn.prepareStatement(query);
-            pstmt.setInt(1, score);
-            pstmt.setString(2, playerName);
-            pstmt.executeUpdate();
-            System.out.println("✓ Score updated for " + playerName);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        
-        int w = getWidth() - 2 * margin;
-        int h = getHeight() - 2 * margin - 30;
-        int cellSize = Math.max(6, Math.min(w / Math.max(1, cols), h / Math.max(1, rows)));
-        
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        int offsetX = margin + (w - cellSize * cols) / 2;
-        int offsetY = margin + (h - cellSize * rows) / 2;
-        
-        g2.setColor(Color.WHITE);
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                Cell cell = maze.grid[r][c];
-                int x = offsetX + c * cellSize;
-                int y = offsetY + r * cellSize;
-                
-                if (cell.wall[0]) g2.drawLine(x, y, x + cellSize, y);
-                if (cell.wall[1]) g2.drawLine(x + cellSize, y, x + cellSize, y + cellSize);
-                if (cell.wall[2]) g2.drawLine(x, y + cellSize, x + cellSize, y + cellSize);
-                if (cell.wall[3]) g2.drawLine(x, y, x, y + cellSize);
-                
-                if (cell.trap) {
-                    if (trapImage != null) {
-                        int imgSize = (int)(cellSize * 0.9);
-                        int imgX = x + (cellSize - imgSize) / 2;
-                        int imgY = y + (cellSize - imgSize) / 2;
-                        g2.drawImage(trapImage, imgX, imgY, imgSize, imgSize, null);
-                    } else {
-                        g2.setColor(new Color(255, 0, 0, 150));
-                        g2.fillRect(x + cellSize/4, y + cellSize/4, cellSize/2, cellSize/2);
-                        g2.setColor(Color.WHITE);
-                    }
-                } else if (cell.treasure) {
-                    if (treasureImage != null) {
-                        int imgSize = (int)(cellSize * 0.9);
-                        int imgX = x + (cellSize - imgSize) / 2;
-                        int imgY = y + (cellSize - imgSize) / 2;
-                        g2.drawImage(treasureImage, imgX, imgY, imgSize, imgSize, null);
-                    } else {
-                        g2.setColor(new Color(255, 215, 0, 150));
-                        g2.fillRect(x + cellSize/4, y + cellSize/4, cellSize/2, cellSize/2);
-                        g2.setColor(Color.WHITE);
-                    }
-                }
-            }
-        }
-        
-        if (hasKey && doorRow >= 0 && doorCol >= 0) {
-            int dx = offsetX + doorCol * cellSize;
-            int dy = offsetY + doorRow * cellSize;
-            
-            if (doorImage != null) {
-                int imgSize = (int)(cellSize * 0.9);
-                int imgX = dx + (cellSize - imgSize) / 2;
-                int imgY = dy + (cellSize - imgSize) / 2;
-                g2.drawImage(doorImage, imgX, imgY, imgSize, imgSize, null);
-            } else {
-                g2.setColor(new Color(218, 165, 32));
-                g2.fillRect(dx + cellSize/4, dy + cellSize/4, cellSize/2, cellSize/2);
-                g2.setColor(Color.WHITE);
-            }
-        }
-        
-        if (keyRow >= 0 && keyCol >= 0) {
-            int kx = offsetX + keyCol * cellSize;
-            int ky = offsetY + keyRow * cellSize;
-            
-            if (keyImage != null) {
-                int imgSize = (int)(cellSize * 0.9);
-                int imgX = kx + (cellSize - imgSize) / 2;
-                int imgY = ky + (cellSize - imgSize) / 2;
-                g2.drawImage(keyImage, imgX, imgY, imgSize, imgSize, null);
-            } else {
-                g2.setColor(new Color(255, 215, 0));
-                g2.fillOval(kx + cellSize/4, ky + cellSize/4, cellSize/2, cellSize/2);
-                g2.setColor(Color.WHITE);
-            }
-        }
-        
-        int px = offsetX + playerCol * cellSize;
-        int py = offsetY + playerRow * cellSize;
-        
-        if (playerIdle != null && playerMove1 != null && playerMove2 != null) {
-            int imgSize = (int)(cellSize * 0.9);
-            int imgX = px + (cellSize - imgSize) / 2;
-            int imgY = py + (cellSize - imgSize) / 2;
-            
-            AffineTransform oldTransform = g2.getTransform();
-            g2.translate(imgX + imgSize/2, imgY + imgSize/2);
-            g2.rotate(Math.toRadians(playerRotation));
-            
-            Image currentFrame;
-            if (isWalking) {
-                currentFrame = useFirstFrame ? playerMove1 : playerMove2;
-            } else {
-                currentFrame = playerIdle;
-            }
-            
-            g2.drawImage(currentFrame, -imgSize/2, -imgSize/2, imgSize, imgSize, null);
-            g2.setTransform(oldTransform);
-        } else {
-            g2.setColor(new Color(0, 255, 255));
-            g2.fillOval(px + cellSize/4, py + cellSize/4, cellSize/2, cellSize/2);
-        }
-        
-        if (enemy != null) {
-            int ex = offsetX + enemy.c * cellSize;
-            int ey = offsetY + enemy.r * cellSize;
-            
-            if (enemyImage != null) {
-                int imgSize = (int)(cellSize * 0.9);
-                int imgX = ex + (cellSize - imgSize) / 2;
-                int imgY = ey + (cellSize - imgSize) / 2;
-                
-                AffineTransform oldTransform = g2.getTransform();
-                g2.translate(imgX + imgSize/2, imgY + imgSize/2);
-                g2.rotate(Math.toRadians(enemy.rotation));
-                g2.drawImage(enemyImage, -imgSize/2, -imgSize/2, imgSize, imgSize, null);
-                g2.setTransform(oldTransform);
-            } else {
-                g2.setColor(new Color(255, 0, 0));
-                g2.fillOval(ex + cellSize/4, ey + cellSize/4, cellSize/2, cellSize/2);
-                g2.setColor(Color.WHITE);
-            }
-        }
-        
-        // HUD
-        g2.setColor(new Color(30, 30, 50, 230));
-        g2.fillRect(0, getHeight() - 30, getWidth(), 30);
-        
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Consolas", Font.BOLD, 16));
-        String hud = String.format("Score: %d   Lives: %d   Player: %s", score, lives, playerName);
-        FontMetrics fm = g2.getFontMetrics();
-        int textWidth = fm.stringWidth(hud);
-        g2.drawString(hud, (getWidth() - textWidth) / 2, getHeight() - 10);
-        
-        g2.dispose();
-    }
-}
-
-/**
- * ═══════════════════════════════════════════════════════════════
- * INTEGRATION COMPLETE!
- * ═══════════════════════════════════════════════════════════════
- * 
- * ✅ WHAT WAS FIXED:
- * 
- * 1. REMOVED password field - only username now
- * 2. Beautiful animated login with particles
- * 3. Game PROPERLY launches from menu (fixed integration)
- * 4. Database queries corrected (user_id, not id)
- * 5. Score updates to database after winning
- * 6. Leaderboard loads from database
- * 7. **PAUSE MENU added - Press ESC in game**
- * 8. **Game returns to menu when player dies (NO STUCK)**
- * 9. **Uses YOUR images: yusra1.jpg and yusra2.jpg**
- * 10. Stunning UI with your maze images
- * 11. ALL game code preserved (only added playerName & parentFrame)
- * 12. Proper error handling and messages
- * 
- * ═══════════════════════════════════════════════════════════════
- * 
- * 🎨 IMAGES TO ADD:
- * 
- * In your project folder, add:
- * - yusra1.jpg (Your first maze image - login background)
- * - yusra2.jpg (Your second maze image - menu background)
- * - All game sprites (key2.png, door.png, etc.)
- * 
- * System automatically tries: yusra1.jpg → yusra1.jpeg → fallback
- * If images missing, uses beautiful animated gradients!
- * 
- * ═══════════════════════════════════════════════════════════════
- * 
- * 🎮 GAME CONTROLS:
- * 
- * - WASD or Arrow Keys: Move player
- * - R: Regenerate maze
- * - **ESC: Pause menu (Resume/Main Menu/Logout)**
- * 
- * ═══════════════════════════════════════════════════════════════
- * 
- * 🎯 PAUSE MENU:
- * 
- * Press ESC during gameplay to open beautiful pause menu with:
- * - ▶ RESUME: Continue playing
- * - 🏠 MAIN MENU: Return to dashboard (lose progress)
- * - ⏻ LOGOUT: Return to login (lose progress)
- * 
- * ═══════════════════════════════════════════════════════════════
- * 
- * 💀 DEATH HANDLING:
- * 
- * When player dies (0 lives):
- * - Shows "Game Over" dialog with final score
- * - Option to play again OR return to menu
- * - NO MORE STUCK GAME!
- * 
- * ═══════════════════════════════════════════════════════════════
- */

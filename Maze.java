@@ -538,7 +538,7 @@ class MainMenuFrame extends JFrame {
             // INTEGRATE YOUR MAZE GAME HERE
             SwingUtilities.invokeLater(() -> { // ensure GUI updates on Event Dispatch Thread
                                              //(It takes a lambda expression  that executes your GUI startup code asynchronously.)
-            MazeFrame frame = new MazeFrame(11, 15, "PlayerOne"); //makign grid (instance of game window)
+            MazeFrame frame = new MazeFrame(11, 15); //makign grid (instance of game window)
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setVisible(true);
         });
@@ -825,6 +825,7 @@ class MainMenuFrame extends JFrame {
  */
 
 class LeaderboardFrame extends JFrame {
+    private Image trophyImage; // Place "trophy.png" in folder (optional)
     private List<Star> stars = new ArrayList<>();
     private javax.swing.Timer animationTimer;
     
@@ -834,7 +835,16 @@ class LeaderboardFrame extends JFrame {
         setLocationRelativeTo(parent);
         setResizable(false);
         
-
+        // Load trophy image - PLACE "trophy.png" IN FOLDER (optional)
+        try {
+            File trophyFile = new File("trophy.png");
+            if (trophyFile.exists()) {
+                trophyImage = ImageIO.read(trophyFile);
+                System.out.println("✓ Trophy image loaded");
+            }
+        } catch (Exception e) {
+            System.out.println("⚠ Trophy image not found - using default");
+        }
         
         LeaderboardPanel panel = new LeaderboardPanel(currentPlayer);
         setContentPane(panel);
@@ -1280,13 +1290,13 @@ class Cell {
         }
 }
 
-class MazeGenerator {
+class Maze {
      int rows;
      int cols;
     Cell[][] grid;//2D array holding all cells 
     Random rand;
 
-  MazeGenerator(int rows, int cols) {
+  Maze(int rows, int cols) {
    
     this.rows = rows;
     this.cols = cols;
@@ -1317,7 +1327,7 @@ class MazeGenerator {
 
     //to implement iterative DFS (backtracking)(so if stuck (wall closed )we could track back )
         Stack <Cell> stack = new Stack<>();
-        Cell start = this.grid[0][0];    //generation begins here 
+        Cell start = grid[0][0];    //generation begins here 
         start.visited = true;
         stack.push(start);          //pushing starting cell onto stack
 
@@ -1327,17 +1337,17 @@ class MazeGenerator {
             int r = current.r ;
             int c = current.c;
 
-            if (r > 0 && !this.grid[r-1][c].visited) //move up 
-            unvisited.add(this.grid[r-1][c]);//mark unvisited so dont create a cycle 
+            if (r > 0 && !grid[r-1][c].visited) //move up 
+            unvisited.add(grid[r-1][c]);//mark unvisited so dont create a cycle 
 
-            if (c < cols-1 && !this.grid[r][c+1].visited)//move right 
-             unvisited.add(this.grid[r][c+1]);
+            if (c < cols-1 && !grid[r][c+1].visited)//move right 
+             unvisited.add(grid[r][c+1]);
 
-            if (r < rows-1 && !this.grid[r+1][c].visited) //move down 
-            unvisited.add(this.grid[r+1][c]);
+            if (r < rows-1 && !grid[r+1][c].visited) //move down 
+            unvisited.add(grid[r+1][c]);
 
-            if (c > 0 && !this.grid[r][c-1].visited) //mve left 
-            unvisited.add(this.grid[r][c-1]);
+            if (c > 0 && !grid[r][c-1].visited) //mve left 
+            unvisited.add(grid[r][c-1]);
 
             //choose random unvisited neighbor if any(to move forward in mae making)
             if (!unvisited.isEmpty()) {
@@ -1440,8 +1450,8 @@ class MazeFrame extends JFrame {
     private final MazePanel mazePanel;          //the maze drawing
    
 
-    MazeFrame(int rows, int cols, String playerName) {
-        setTitle("Maze Adventure - " + playerName);
+    MazeFrame(int rows, int cols, String playerName, DifficultyLevel level) {
+        setTitle("Maze Adventure - " + playerName + " - " + level);
         mazePanel = new MazePanel(rows, cols);
         
         setLayout(new BorderLayout());//how components are arranged in the frame
@@ -1485,7 +1495,7 @@ class MazePanel extends JPanel {
     private boolean isWalking = false;
     private boolean useFirstFrame = true;
     
-    MazeGenerator maze;
+    Maze maze;
      int rows;
      int  cols;
      int margin = 10;//Helps prevent visuals from touching the panel edges.
@@ -1667,7 +1677,7 @@ class MazePanel extends JPanel {
             } else {
                 System.err.println("treasure.png not found at: " + treasureFile.getAbsolutePath());
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("Error loading images: " + e.getMessage());
         }
         
@@ -1906,7 +1916,7 @@ class MazePanel extends JPanel {
 
     // regenerate with a fresh RNG and ensure door/path/traps per your rules
     void randomize() {
-        this.maze = new MazeGenerator(rows, cols);
+        this.maze = new Maze(rows, cols);
         this.maze.generate();
 
         // pick a random door location 
