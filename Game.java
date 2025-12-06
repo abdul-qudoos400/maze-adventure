@@ -74,32 +74,107 @@ class EnhancedLogin extends JFrame {
     private Image backgroundImage;
     private List<FloatingParticle> particles = new ArrayList<>();
     private Timer animationTimer;
+
+    void showBeautifulConfirm(String title, String message, Color themeColor,
+                          Runnable onYes, Runnable onNo) {
+    JDialog dialog = new JDialog(this, true);
+    dialog.setUndecorated(true);
+    dialog.setSize(500, 250);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 30, 20, 250),
+                                                 0, getHeight(), new Color(30, 50, 30, 250));
+            g2.setPaint(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            
+            for (int i = 5; i > 0; i--) {
+                g2.setColor(new Color(themeColor.getRed(), themeColor.getGreen(),
+                                     themeColor.getBlue(), 35 - i * 6));
+                g2.setStroke(new BasicStroke(i * 2));
+                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 35, 35);
+            }
+        }
+    };
+    panel.setLayout(null);
+    
+    JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+    titleLabel.setFont(new Font("Impact", Font.BOLD, 36));
+    titleLabel.setForeground(themeColor);
+    titleLabel.setBounds(0, 30, 500, 45);
+    panel.add(titleLabel);
+    
+    JLabel msgLabel = new JLabel(message, SwingConstants.CENTER);
+    msgLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+    msgLabel.setForeground(new Color(200, 255, 200));
+    msgLabel.setBounds(30, 90, 440, 60);
+    panel.add(msgLabel);
+    
+    GlowingButton yesBtn = new GlowingButton("YES", themeColor);
+    yesBtn.setBounds(60, 170, 160, 55);
+    yesBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onYes != null) onYes.run();
+    });
+    panel.add(yesBtn);
+    
+    GlowingButton noBtn = new GlowingButton("NO", new Color(100, 100, 100));
+    noBtn.setBounds(280, 170, 160, 55);
+    noBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onNo != null) onNo.run();
+    });
+    panel.add(noBtn);
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+}
     
     public EnhancedLogin() {
-        setTitle("Maze Adventure - Login");
-        setSize(1000, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
+    setTitle("Maze Adventure - Login");
+    setSize(1000, 700);
+    setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    setLocationRelativeTo(null);
+    setResizable(false);
+    
+    loadBackground("bg1.png", "bg1.jpg");
+    
         
-        // Load background - USE IMAGE 1 (Green maze with tower)
-        loadBackground("bg1.png", "bg1.jpg");
-        
-        // Create particles
-        for (int i = 0; i < 60; i++) {
-            particles.add(new FloatingParticle(1000, 700));
-        }
-        
-        // Animation
-        animationTimer = new Timer(30, e -> {
-            for (FloatingParticle p : particles) p.update();
-            repaint();
-        });
-        animationTimer.start();
-        
-        setContentPane(new LoginPanel());
-        setVisible(true);
+
+
+    for (int i = 0; i < 60; i++) {
+        particles.add(new FloatingParticle(1000, 700));
     }
+    
+    animationTimer = new Timer(30, e -> {
+        for (FloatingParticle p : particles) p.update();
+        repaint();
+    });
+    animationTimer.start();
+    
+    LoginPanel panel = new LoginPanel();
+    setContentPane(panel);
+    
+    // ADD THIS: ESC key to exit
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "EXIT");
+panel.getActionMap().put("EXIT", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        showBeautifulConfirm(
+            "Exit Game?",
+            "Are you sure you want to exit?",
+            new Color(231, 76, 60),
+            () -> System.exit(0),
+            () -> {}
+        );
+    }
+});
+    
+    setVisible(true);
+}
     
     private void loadBackground(String png, String jpg) {
         try {
@@ -200,15 +275,17 @@ class EnhancedLogin extends JFrame {
             });
             
             add(nameField);
-            
+            nameField.addActionListener(e -> handleLogin());
             // Login button
             loginButton = new GlowingButton("LOGIN", new Color(46, 204, 113));
+            //loginButton = new GlowingButton("LOGIN", new Color(46, 204, 113));
             loginButton.setBounds(350, 435, 300, 65);
             loginButton.addActionListener(e -> handleLogin());
             add(loginButton);
             
             // Register button
-            registerButton = new GlowingButton("REGISTER", new Color(52, 152, 219));
+            registerButton = new GlowingButton("REGISTER", new Color(39, 174, 96));
+            //registerButton = new GlowingButton("REGISTER", new Color(52, 152, 219));
             registerButton.setBounds(350, 520, 300, 65);
             registerButton.addActionListener(e -> handleRegister());
             add(registerButton);
@@ -378,33 +455,128 @@ class EnhancedMainMenu extends JFrame {
     private List<HexOrb> orbs = new ArrayList<>();
     private Timer animationTimer;
     private String playerName;
+
+    void showBeautifulConfirm(String title, String message, Color themeColor,
+                          Runnable onYes, Runnable onNo) {
+    JDialog dialog = new JDialog(this, true);
+    dialog.setUndecorated(true);
+    dialog.setSize(500, 250);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 30, 20, 250),
+                                                 0, getHeight(), new Color(30, 50, 30, 250));
+            g2.setPaint(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            
+            for (int i = 5; i > 0; i--) {
+                g2.setColor(new Color(themeColor.getRed(), themeColor.getGreen(),
+                                     themeColor.getBlue(), 35 - i * 6));
+                g2.setStroke(new BasicStroke(i * 2));
+                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 35, 35);
+            }
+        }
+    };
+    panel.setLayout(null);
+    
+    JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+    titleLabel.setFont(new Font("Impact", Font.BOLD, 36));
+    titleLabel.setForeground(themeColor);
+    titleLabel.setBounds(0, 30, 500, 45);
+    panel.add(titleLabel);
+    
+    JLabel msgLabel = new JLabel(message, SwingConstants.CENTER);
+    msgLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+    msgLabel.setForeground(new Color(200, 255, 200));
+    msgLabel.setBounds(30, 90, 440, 60);
+    panel.add(msgLabel);
+    
+    GlowingButton yesBtn = new GlowingButton("YES", themeColor);
+    yesBtn.setBounds(60, 170, 160, 55);
+    yesBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onYes != null) onYes.run();
+    });
+    panel.add(yesBtn);
+    
+    GlowingButton noBtn = new GlowingButton("NO", new Color(100, 100, 100));
+    noBtn.setBounds(280, 170, 160, 55);
+    noBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onNo != null) onNo.run();
+    });
+    panel.add(noBtn);
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+}
+
     
     public EnhancedMainMenu(String playerName) {
-        this.playerName = playerName;
-        
-        setTitle("Maze Adventure - Main Menu");
-        setSize(1200, 800);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
-        
-        // Load background - USE IMAGE 2 (Blue tech maze)
-        loadBackground("bg2.png", "bg2.jpg");
-        
-        // Create orbs
-        for (int i = 0; i < 25; i++) {
-            orbs.add(new HexOrb());
-        }
-        
-        animationTimer = new Timer(25, e -> {
-            for (HexOrb orb : orbs) orb.update();
-            repaint();
-        });
-        animationTimer.start();
-        
-        setContentPane(new MenuPanel());
-        setVisible(true);
+    this.playerName = playerName;
+    
+    setTitle("Maze Adventure - Main Menu");
+    setSize(1200, 800);
+    setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    setLocationRelativeTo(null);
+    setResizable(false);
+    
+    loadBackground("bg2.png", "bg2.jpg");
+    
+    for (int i = 0; i < 25; i++) {
+        orbs.add(new HexOrb());
     }
+    
+    animationTimer = new Timer(25, e -> {
+        for (HexOrb orb : orbs) orb.update();
+        repaint();
+    });
+    animationTimer.start();
+    
+    MenuPanel panel = new MenuPanel();
+    setContentPane(panel);
+    
+    // ADD THIS: Keyboard shortcuts
+    // S key = Start Game
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("S"), "START");
+    panel.getActionMap().put("START", new AbstractAction() {
+        public void actionPerformed(ActionEvent e) {
+            EnhancedMainMenu.this.dispose();
+            new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+        }
+    });
+    
+    // L key = Leaderboard
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("L"), "LEADER");
+    panel.getActionMap().put("LEADER", new AbstractAction() {
+        public void actionPerformed(ActionEvent e) {
+            new EnhancedLeaderboard(playerName, EnhancedMainMenu.this);
+        }
+    });
+    
+    // ESC key = Logout
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "LOGOUT");
+panel.getActionMap().put("LOGOUT", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        showBeautifulConfirm(
+            "Logout?",
+            "Are you sure you want to logout?",
+            new Color(231, 76, 60),
+            () -> {
+                EnhancedMainMenu.this.dispose();
+                new EnhancedLogin();
+            },
+            () -> {}
+        );
+    }
+});
+    
+    setVisible(true);
+}
     
     private void loadBackground(String png, String jpg) {
         try {
@@ -439,13 +611,14 @@ class EnhancedMainMenu extends JFrame {
             angle = Math.random() * 360;
             rotSpeed = -1 + Math.random() * 2;
             
-            int choice = (int)(Math.random() * 4);
-            switch(choice) {
-                case 0: color = new Color(0, 191, 255); break;
-                case 1: color = new Color(138, 43, 226); break;
-                case 2: color = new Color(50, 205, 50); break;
-                default: color = new Color(255, 140, 0); break;
-            }
+            // GREEN COLORS ONLY:
+    int choice = (int)(Math.random() * 4);
+    switch(choice) {
+        case 0: color = new Color(50, 205, 50); break;    // Lime green
+        case 1: color = new Color(46, 204, 113); break;   // Emerald
+        case 2: color = new Color(100, 255, 150); break;  // Light green
+        default: color = new Color(34, 139, 34); break;   // Forest green
+    }
         }
         
         void update() {
@@ -505,21 +678,24 @@ class EnhancedMainMenu extends JFrame {
         }
         
         void createButtons() {
-            startBtn = new GlowingButton("START GAME ⚔", new Color(46, 204, 113));
-            startBtn.setBounds(400, 320, 400, 85);
-            startBtn.addActionListener(e -> new DifficultyMenuFrame(11, 15, playerName).setVisible(true));
-            add(startBtn);
-            
-            leaderBtn = new GlowingButton("LEADERBOARD ★", new Color(241, 196, 15));
-            leaderBtn.setBounds(400, 425, 400, 85);
-            leaderBtn.addActionListener(e -> showLeaderboard());
-            add(leaderBtn);
-            
-            logoutBtn = new GlowingButton("LOGOUT ⏻", new Color(231, 76, 60));
-            logoutBtn.setBounds(400, 530, 400, 85);
-            logoutBtn.addActionListener(e -> logout());
-            add(logoutBtn);
-        }
+    startBtn = new GlowingButton("START GAME", new Color(46, 204, 113));
+    startBtn.setBounds(400, 320, 400, 85);
+    startBtn.addActionListener(e -> {
+        EnhancedMainMenu.this.dispose();
+        new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+    });
+    add(startBtn);
+    
+    leaderBtn = new GlowingButton("LEADERBOARD", new Color(39, 174, 96));
+    leaderBtn.setBounds(400, 425, 400, 85);
+    leaderBtn.addActionListener(e -> showLeaderboard());
+    add(leaderBtn);
+    
+    logoutBtn = new GlowingButton("LOGOUT", new Color(22, 160, 133));
+    logoutBtn.setBounds(400, 530, 400, 85);
+    logoutBtn.addActionListener(e -> logout());
+    add(logoutBtn);
+}
         
         void startGame() {
             EnhancedMainMenu.this.dispose();
@@ -533,16 +709,17 @@ class EnhancedMainMenu extends JFrame {
         }
         
         void logout() {
-            int choice = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to logout?",
-                "Confirm Logout",
-                JOptionPane.YES_NO_OPTION);
-            
-            if (choice == JOptionPane.YES_OPTION) {
-                EnhancedMainMenu.this.dispose();
-                new EnhancedLogin();
-            }
-        }
+    showBeautifulConfirm(
+        "Logout?",
+        "Are you sure you want to logout?",
+        new Color(231, 76, 60),
+        () -> {
+            EnhancedMainMenu.this.dispose();
+            new EnhancedLogin();
+        },
+        () -> {}
+    );
+}
         
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -557,15 +734,15 @@ class EnhancedMainMenu extends JFrame {
                 g2.fillRect(0, 0, getWidth(), getHeight());
             } else {
                 Color c1 = new Color(
-                    (int)(20 + 15 * Math.sin(gradOffset * Math.PI)),
-                    (int)(30 + 20 * Math.cos(gradOffset * Math.PI)),
-                    (int)(60 + 30 * Math.sin(gradOffset * Math.PI * 2))
-                );
-                Color c2 = new Color(
-                    (int)(10 + 10 * Math.cos(gradOffset * Math.PI)),
-                    (int)(20 + 15 * Math.sin(gradOffset * Math.PI * 1.5)),
-                    (int)(80 + 40 * Math.cos(gradOffset * Math.PI))
-                );
+    (int)(20 + 10 * Math.sin(gradOffset * Math.PI)),
+    (int)(40 + 15 * Math.cos(gradOffset * Math.PI)),
+    (int)(30 + 10 * Math.sin(gradOffset * Math.PI * 2))
+);
+Color c2 = new Color(
+    (int)(10 + 8 * Math.cos(gradOffset * Math.PI)),
+    (int)(60 + 20 * Math.sin(gradOffset * Math.PI * 1.5)),
+    (int)(40 + 15 * Math.cos(gradOffset * Math.PI))
+);
                 GradientPaint grad = new GradientPaint(0, 0, c1, getWidth(), getHeight(), c2);
                 g2.setPaint(grad);
                 g2.fillRect(0, 0, getWidth(), getHeight());
@@ -591,9 +768,9 @@ class EnhancedMainMenu extends JFrame {
             }
             
             GradientPaint titleGrad = new GradientPaint(
-                x, y - 30, new Color(100, 200, 255),
-                x, y + 30, new Color(50, 150, 255)
-            );
+    x, y - 30, new Color(100, 255, 150),
+    x, y + 30, new Color(50, 200, 100)
+);
             g2.setPaint(titleGrad);
             g2.drawString(title, x, y);
             
@@ -607,7 +784,7 @@ class EnhancedMainMenu extends JFrame {
             // Frame decoration
             g2.setStroke(new BasicStroke(3));
             for (int i = 0; i < 6; i++) {
-                g2.setColor(new Color(100, 200, 255, 25 - i * 4));
+                g2.setColor(new Color(100, 255, 150, 25 - i * 4));
                 g2.drawRoundRect(20 + i, 20 + i, getWidth() - 40 - i*2, getHeight() - 40 - i*2, 45, 45);
             }
         }
@@ -1003,6 +1180,81 @@ class DifficultyMenuFrame extends JFrame {
         }
     }
 
+    void showBeautifulConfirm(String title, String message, Color themeColor,
+                          Runnable onYes, Runnable onNo) {
+    JDialog dialog = new JDialog(this, true);
+    dialog.setUndecorated(true);
+    dialog.setSize(500, 250);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Dark green gradient background
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 30, 20, 250),
+                                                 0, getHeight(), new Color(30, 50, 30, 250));
+            g2.setPaint(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            
+            // Colored glow border
+            for (int i = 5; i > 0; i--) {
+                g2.setColor(new Color(themeColor.getRed(), themeColor.getGreen(),
+                                     themeColor.getBlue(), 35 - i * 6));
+                g2.setStroke(new BasicStroke(i * 2));
+                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 35, 35);
+            }
+        }
+    };
+    panel.setLayout(null);
+    
+    // Title label
+    JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+    titleLabel.setFont(new Font("Impact", Font.BOLD, 36));
+    titleLabel.setForeground(themeColor);
+    titleLabel.setBounds(0, 30, 500, 45);
+    panel.add(titleLabel);
+    
+    // Message label
+    JLabel msgLabel = new JLabel(message, SwingConstants.CENTER);
+    msgLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+    msgLabel.setForeground(new Color(200, 255, 200));
+    msgLabel.setBounds(30, 90, 440, 60);
+    panel.add(msgLabel);
+    
+    // YES button
+    GlowingButton yesBtn = new GlowingButton("YES", themeColor);
+    yesBtn.setBounds(60, 170, 160, 55);
+    yesBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onYes != null) onYes.run();
+    });
+    panel.add(yesBtn);
+    
+    // NO button
+    GlowingButton noBtn = new GlowingButton("NO", new Color(100, 100, 100));
+    noBtn.setBounds(280, 170, 160, 55);
+    noBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onNo != null) onNo.run();
+    });
+    panel.add(noBtn);
+    
+    // ESC key to close (same as NO)
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "CLOSE");
+    panel.getActionMap().put("CLOSE", new AbstractAction() {
+        public void actionPerformed(ActionEvent e) {
+            dialog.dispose();
+            if (onNo != null) onNo.run();
+        }
+    });
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+}
+
     DifficultyMenuFrame(int rows, int cols, String playerName) {  // ADD playerName parameter
     super("Maze Adventure");
     this.rows = rows;
@@ -1053,24 +1305,30 @@ class DifficultyMenuFrame extends JFrame {
 
                 // Draw animated particles
                 g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-                for (Particle p : particles) {
-                    g2.setColor(new Color(100, 255, 150, (int)(p.alpha * 255)));
-                    g2.fillOval((int)p.x, (int)p.y, (int)p.size, (int)p.size);
-                    
-                    // Glow effect
-                    float glowSize = p.size * 3;
-                    RadialGradientPaint glow = new RadialGradientPaint(
-                        p.x + p.size/2, p.y + p.size/2, glowSize,
-                        new float[]{0f, 1f},
-                        new Color[]{
-                            new Color(100, 255, 150, (int)(p.alpha * 100)),
-                            new Color(100, 255, 150, 0)
-                        }
-                    );
-                    g2.setPaint(glow);
-                    g2.fillOval((int)(p.x - glowSize), (int)(p.y - glowSize), 
-                               (int)(glowSize * 2), (int)(glowSize * 2));
-                }
+for (Particle p : particles) {
+    // Main particle - brighter green
+    g2.setColor(new Color(150, 255, 150, (int)(p.alpha * 255)));
+    g2.fillOval((int)p.x, (int)p.y, (int)p.size, (int)p.size);
+    
+    // Inner white core (like login screen)
+    g2.setColor(new Color(255, 255, 255, (int)(p.alpha * 150)));
+    g2.fillOval((int)p.x, (int)p.y, (int)(p.size/2), (int)(p.size/2));
+    
+    // Outer glow effect - bigger and brighter
+    float glowSize = p.size * 4;
+    RadialGradientPaint glow = new RadialGradientPaint(
+        p.x + p.size/2, p.y + p.size/2, glowSize,
+        new float[]{0f, 0.5f, 1f},
+        new Color[]{
+            new Color(150, 255, 150, (int)(p.alpha * 150)),
+            new Color(100, 255, 150, (int)(p.alpha * 80)),
+            new Color(100, 255, 150, 0)
+        }
+    );
+    g2.setPaint(glow);
+    g2.fillOval((int)(p.x - glowSize), (int)(p.y - glowSize), 
+               (int)(glowSize * 2), (int)(glowSize * 2));
+}
             }
         };
         mainPanel.setOpaque(false);
@@ -1168,7 +1426,48 @@ class DifficultyMenuFrame extends JFrame {
         medBtn.addActionListener(e -> openGame(Difficulty.MEDIUM));
         hardBtn.addActionListener(e -> openGame(Difficulty.HARD));
 
-        setLocationRelativeTo(null);
+        mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("1"), "EASY");
+mainPanel.getActionMap().put("EASY", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        openGame(Difficulty.EASY);
+    }
+});
+
+mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("2"), "MEDIUM");
+mainPanel.getActionMap().put("MEDIUM", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        openGame(Difficulty.MEDIUM);
+    }
+});
+
+mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("3"), "HARD");
+mainPanel.getActionMap().put("HARD", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        openGame(Difficulty.HARD);
+    }
+});
+
+// ESC key to go back to main menu
+mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "BACK");
+mainPanel.getActionMap().put("BACK", new AbstractAction() {
+    public void actionPerformed(ActionEvent e) {
+        showBeautifulConfirm(
+            "Return to Menu?",
+            "Go back to main menu?",
+            new Color(231, 76, 60),
+            () -> {
+                animationTimer.stop();
+                DifficultyMenuFrame.this.dispose();
+                new EnhancedMainMenu(playerName);
+            },
+            () -> {}
+        );
+    }
+});
+
+setLocationRelativeTo(null);
+
+        //setLocationRelativeTo(null);
     }
 
     class AnimatedButton extends JButton {
@@ -1183,8 +1482,8 @@ class DifficultyMenuFrame extends JFrame {
             this.baseColor = color;
             this.description = desc;
             
-            setPreferredSize(new Dimension(700, 120));
-            setFont(new Font("Impact", Font.BOLD, 48));
+            setPreferredSize(new Dimension(300, 90));      // Was: 700, 120
+    setFont(new Font("Impact", Font.BOLD, 30));
             setForeground(Color.WHITE);
             setContentAreaFilled(false);
             setBorderPainted(false);
@@ -1955,24 +2254,33 @@ class MazePanel extends JPanel {
 
         // If enemy catches the player
         if (enemy.r == playerRow && enemy.c == playerCol) {
-            JOptionPane.showMessageDialog(this, "💀 Enemy caught you!");
-            lives--;
-            if (lives <= 0) {
-                gameOver = true;
-                int opt = JOptionPane.showConfirmDialog(
-                    this,
-                    "Game Over! Play again?",
-                    "Game Over",
-                    JOptionPane.YES_NO_OPTION
-                );
-                if (opt == JOptionPane.YES_OPTION) {
-                    randomize();
-                }
+    lives--;
+    showQuickMessage("💀 Enemy caught you! Lives: " + lives, new Color(231, 76, 60));
+    
+    if (lives <= 0) {
+        gameOver = true;
+        Timer delayTimer = new Timer(1200, ev -> {
+            int opt = JOptionPane.showConfirmDialog(
+                this,
+                "Game Over! Final Score: " + score + "\n\nPlay again?",
+                "Game Over",
+                JOptionPane.YES_NO_OPTION
+            );
+            if (opt == JOptionPane.YES_OPTION) {
+                randomize();
             } else {
-                playerRow = 0;
-                playerCol = 0;
+                parentFrame.dispose();
+                new EnhancedMainMenu(playerName);
             }
-        }
+        });
+        delayTimer.setRepeats(false);
+        delayTimer.start();
+        return;
+    } else {
+        playerRow = 0;
+        playerCol = 0;
+    }
+}
 
         repaint();
     }
@@ -2177,22 +2485,23 @@ class MazePanel extends JPanel {
     lives--;
     next.trap = false;
     if (lives <= 0) {
-        gameOver = true;
-        JOptionPane.showMessageDialog(this, "Game Over! You ran out of lives.\nFinal Score: " + score);
-        
-        int opt = JOptionPane.showConfirmDialog(this,
-            "Play again?",
-            "Game Over",
-            JOptionPane.YES_NO_OPTION);
-        
-        if (opt == JOptionPane.YES_OPTION) {
-            randomize();
-        } else {
-            parentFrame.dispose();
-            new EnhancedMainMenu(playerName);
-        }
-        return;
-    }
+    gameOver = true;
+    Timer delayTimer = new Timer(500, ev -> {
+        showBeautifulDialog(
+            "GAME OVER",
+            "You ran out of lives!\nFinal Score: " + score + "\nTry again?",
+            new Color(231, 76, 60),
+            () -> randomize(),
+            () -> {
+                parentFrame.dispose();
+                new EnhancedMainMenu(playerName);
+            }
+        );
+    });
+    delayTimer.setRepeats(false);
+    delayTimer.start();
+    return;
+}
     showQuickMessage(" Trap! Life lost. Lives: " + lives, new Color(231, 76, 60));
 } else if (next.treasure) {
     score += 10;
@@ -2204,31 +2513,31 @@ class MazePanel extends JPanel {
 
         // check key pickup (visible from start)
         if (keyRow >= 0 && keyCol >= 0 && playerRow == keyRow && playerCol == keyCol) {
-            hasKey = true;
-            keyRow = -1; 
-            keyCol = -1;
-            JOptionPane.showMessageDialog(this, "You found the Key! The Door will now appear at the exit.");
-        }
+    hasKey = true;
+    keyRow = -1; 
+    keyCol = -1;
+    showQuickMessage("Key found! Door appeared!", new Color(46, 204, 113));
+}
 
         // check door only when player has the key
-        if (hasKey && doorRow >= 0 && doorCol >= 0 && playerRow == doorRow && playerCol == doorCol) {
+       if (hasKey && doorRow >= 0 && doorCol >= 0 && playerRow == doorRow && playerCol == doorCol) {
     gameOver = true;
-    updateScore();  // ADD THIS LINE
+    updateScore();
     
-    int opt = JOptionPane.showConfirmDialog(
-        this,
-        "🎉 VICTORY!\nFinal Score: " + score + "\n\nPlay again?",
-        "You Win!",
-        JOptionPane.YES_NO_OPTION
-    );
-    
-    if (opt == JOptionPane.YES_OPTION) {
-        randomize();
-    } else {
-        // Return to main menu
-        parentFrame.dispose();
-        new EnhancedMainMenu(playerName);
-    }
+    Timer delayTimer = new Timer(500, ev -> {
+        showBeautifulDialog(
+            "VICTORY!",
+            "Congratulations! You escaped the maze!\nWanna Play Again?\nFinal Score: " + score,
+            new Color(46, 204, 113),
+            () -> randomize(),
+            () -> {
+                parentFrame.dispose();
+                new EnhancedMainMenu(playerName);
+            }
+        );
+    });
+    delayTimer.setRepeats(false);
+    delayTimer.start();
     return;
 }
 
@@ -2294,6 +2603,85 @@ void showQuickMessage(String message, Color color) {
     dialog.requestFocus();
 }
 
+/**
+ * Shows a beautiful choice dialog matching game theme
+ */
+void showBeautifulDialog(String title, String message, Color themeColor, 
+                         Runnable onYes, Runnable onNo) {
+    JDialog dialog = new JDialog((JFrame)SwingUtilities.getWindowAncestor(this), true);
+    dialog.setUndecorated(true);
+    dialog.setSize(550, 300);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Dark background with gradient
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 30, 20, 250),
+                                                 0, getHeight(), new Color(30, 50, 30, 250));
+            g2.setPaint(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            
+            // Glow border
+            for (int i = 6; i > 0; i--) {
+                g2.setColor(new Color(themeColor.getRed(), themeColor.getGreen(), 
+                                     themeColor.getBlue(), 40 - i * 6));
+                g2.setStroke(new BasicStroke(i * 2));
+                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 35, 35);
+            }
+        }
+    };
+    panel.setLayout(null);
+    
+    // Title
+    JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+    titleLabel.setFont(new Font("Impact", Font.BOLD, 42));
+    titleLabel.setForeground(themeColor);
+    titleLabel.setBounds(0, 30, 550, 50);
+    panel.add(titleLabel);
+    
+    // Message
+    JLabel msgLabel = new JLabel("<html><div style='text-align: center;'>" + 
+                                 message.replace("\n", "<br>") + "</div></html>", 
+                                 SwingConstants.CENTER);
+    msgLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+    msgLabel.setForeground(new Color(200, 255, 200));
+    msgLabel.setBounds(30, 90, 490, 100);
+    panel.add(msgLabel);
+    
+    // Yes button
+    GlowingButton yesBtn = new GlowingButton("✓ YES", themeColor);
+    yesBtn.setBounds(70, 210, 180, 60);
+    yesBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onYes != null) onYes.run();
+    });
+    panel.add(yesBtn);
+    
+    // No button
+    GlowingButton noBtn = new GlowingButton("✗ NO", new Color(100, 100, 100));
+    noBtn.setBounds(300, 210, 180, 60);
+    noBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onNo != null) onNo.run();
+    });
+    panel.add(noBtn);
+    
+    // ESC key to close
+    panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "CLOSE");
+    panel.getActionMap().put("CLOSE", new AbstractAction() {
+        public void actionPerformed(ActionEvent e) {
+            dialog.dispose();
+            if (onNo != null) onNo.run();
+        }
+    });
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+}
  /**
   * Main rendering method that draws the entire game state.
   */
@@ -2515,6 +2903,68 @@ class PauseMenuDialog extends JDialog {
             g2.fillOval((int)x, (int)y, (int)(size/2), (int)(size/2));
         }
     }
+
+    void showBeautifulConfirm(String title, String message, Color themeColor,
+                          Runnable onYes, Runnable onNo) {
+    JDialog dialog = new JDialog(this, true);
+    dialog.setUndecorated(true);
+    dialog.setSize(500, 250);
+    dialog.setLocationRelativeTo(this);
+    
+    JPanel panel = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 30, 20, 250),
+                                                 0, getHeight(), new Color(30, 50, 30, 250));
+            g2.setPaint(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 35, 35);
+            
+            for (int i = 5; i > 0; i--) {
+                g2.setColor(new Color(themeColor.getRed(), themeColor.getGreen(),
+                                     themeColor.getBlue(), 35 - i * 6));
+                g2.setStroke(new BasicStroke(i * 2));
+                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 35, 35);
+            }
+        }
+    };
+    panel.setLayout(null);
+    
+    JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
+    titleLabel.setFont(new Font("Impact", Font.BOLD, 36));
+    titleLabel.setForeground(themeColor);
+    titleLabel.setBounds(0, 30, 500, 45);
+    panel.add(titleLabel);
+    
+    JLabel msgLabel = new JLabel("<html><div style='text-align: center;'>" + 
+                                 message.replace("\n", "<br>") + "</div></html>", 
+                                 SwingConstants.CENTER);
+    msgLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+    msgLabel.setForeground(new Color(200, 255, 200));
+    msgLabel.setBounds(30, 90, 440, 60);
+    panel.add(msgLabel);
+    
+    GlowingButton yesBtn = new GlowingButton("YES", themeColor);
+    yesBtn.setBounds(60, 170, 160, 55);
+    yesBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onYes != null) onYes.run();
+    });
+    panel.add(yesBtn);
+    
+    GlowingButton noBtn = new GlowingButton("NO", new Color(100, 100, 100));
+    noBtn.setBounds(280, 170, 160, 55);
+    noBtn.addActionListener(e -> {
+        dialog.dispose();
+        if (onNo != null) onNo.run();
+    });
+    panel.add(noBtn);
+    
+    dialog.setContentPane(panel);
+    dialog.setVisible(true);
+}
     
     class PausePanel extends JPanel {
         private GlowingButton resumeBtn, menuBtn, logoutBtn;
@@ -2541,51 +2991,54 @@ class PauseMenuDialog extends JDialog {
         }
         
         void createButtons() {
-            // Resume button
-            resumeBtn = new GlowingButton("▶ RESUME", new Color(46, 204, 113));
-            resumeBtn.setBounds(150, 180, 300, 70);
-            resumeBtn.addActionListener(e -> {
-                dialog.animationTimer.stop();
-                dialog.dispose();
-            });
-            add(resumeBtn);
-            
-            // Main Menu button
-            menuBtn = new GlowingButton("🏠 MAIN MENU", new Color(52, 152, 219));
-            menuBtn.setBounds(150, 270, 300, 70);
-            menuBtn.addActionListener(e -> {
-                int choice = JOptionPane.showConfirmDialog(this,
-                    "Return to main menu?\n(Current game will be lost)",
-                    "Confirm",
-                    JOptionPane.YES_NO_OPTION);
-                
-                if (choice == JOptionPane.YES_OPTION) {
-                    dialog.animationTimer.stop();
-                    dialog.dispose();
-                    parent.dispose();
-                    new EnhancedMainMenu(playerName);
-                }
-            });
-            add(menuBtn);
-            
-            // Logout button
-            logoutBtn = new GlowingButton("⏻ LOGOUT", new Color(231, 76, 60));
-            logoutBtn.setBounds(150, 360, 300, 70);
-            logoutBtn.addActionListener(e -> {
-                int choice = JOptionPane.showConfirmDialog(this,
-                    "Logout and return to login screen?\n(Current game will be lost)",
-                    "Confirm Logout",
-                    JOptionPane.YES_NO_OPTION);
-                
-                if (choice == JOptionPane.YES_OPTION) {
-                    dialog.animationTimer.stop();
-                    dialog.dispose();
-                    parent.dispose();
-                    new EnhancedLogin();
-                }
-            });
-            add(logoutBtn);
-        }
+    // Resume button - GREEN
+    resumeBtn = new GlowingButton("▶ RESUME", new Color(46, 204, 113));
+    resumeBtn.setBounds(150, 180, 300, 70);
+    resumeBtn.addActionListener(e -> {
+        dialog.animationTimer.stop();
+        dialog.dispose();
+    });
+    add(resumeBtn);
+    
+    // Main Menu button - GREEN
+    menuBtn = new GlowingButton("MAIN MENU", new Color(39, 174, 96));
+menuBtn.setBounds(150, 270, 300, 70);
+menuBtn.addActionListener(e -> {
+    dialog.showBeautifulConfirm(
+        "Return to Menu?",
+        "Return to main menu?\n(Current game will be lost)",
+        new Color(231, 76, 60),
+        () -> {
+            dialog.animationTimer.stop();
+            dialog.dispose();
+            parent.dispose();
+            new EnhancedMainMenu(playerName);
+        },
+        () -> {}
+    );
+});
+add(menuBtn);
+    
+    // Logout button - DARKER GREEN
+    
+logoutBtn = new GlowingButton("LOGOUT", new Color(22, 160, 133));
+logoutBtn.setBounds(150, 360, 300, 70);
+logoutBtn.addActionListener(e -> {
+    dialog.showBeautifulConfirm(
+        "Logout?",
+        "Logout and return to login screen?\n(Current game will be lost)",
+        new Color(231, 76, 60),
+        () -> {
+            dialog.animationTimer.stop();
+            dialog.dispose();
+            parent.dispose();
+            new EnhancedLogin();
+        },
+        () -> {}
+    );
+});
+add(logoutBtn);
+}
         
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -2593,8 +3046,8 @@ class PauseMenuDialog extends JDialog {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             
             // Dark glass background
-            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 20, 40, 250),
-                                                 0, getHeight(), new Color(40, 40, 80, 250));
+            GradientPaint bg = new GradientPaint(0, 0, new Color(20, 40, 30, 250),
+                                     0, getHeight(), new Color(30, 60, 40, 250));
             g2.setPaint(bg);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
             
@@ -2606,10 +3059,10 @@ class PauseMenuDialog extends JDialog {
             
             // Border glow
             for (int i = 5; i > 0; i--) {
-                g2.setColor(new Color(100, 200, 255, 40 - i * 7));
-                g2.setStroke(new BasicStroke(i * 2));
-                g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 30, 30);
-            }
+    g2.setColor(new Color(100, 255, 150, 40 - i * 7));
+    g2.setStroke(new BasicStroke(i * 2));
+    g2.drawRoundRect(i, i, getWidth() - i * 2, getHeight() - i * 2, 30, 30);
+}
             
             // Title with pulse
             g2.setFont(new Font("Impact", Font.BOLD, 60));
@@ -2626,14 +3079,14 @@ class PauseMenuDialog extends JDialog {
                 g2.drawString(title, x - i/2, y - i/2);
             }
             
-            GradientPaint titleGrad = new GradientPaint(x, y - 25, new Color(150, 220, 255),
-                                                        x, y + 25, new Color(100, 180, 255));
+            GradientPaint titleGrad = new GradientPaint(x, y - 25, new Color(150, 255, 180),
+                                            x, y + 25, new Color(100, 220, 150));
             g2.setPaint(titleGrad);
             g2.drawString(title, x, y);
             
             // Instruction text
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-            g2.setColor(new Color(200, 200, 255, 180));
+            g2.setColor(new Color(200, 255, 200, 180));
             String instruction = "Press ESC to resume or choose an option below";
             int instrWidth = g2.getFontMetrics().stringWidth(instruction);
             g2.drawString(instruction, (getWidth() - instrWidth) / 2, 140);
