@@ -11,6 +11,7 @@ import javax.swing.Timer;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
+import javax.sound.sampled.*;
 
 /**
  * ╔══════════════════════════════════════════════════════════════╗
@@ -55,7 +56,7 @@ class Connectivity {
 
     private static final String URL = "jdbc:mysql://localhost:3306/project3";
     private static final String USER = "root";
-    private static final String PASSWORD = "saiki$18";
+    private static final String PASSWORD = "love you too";
 
     public static Connection connectingToDatabase() {
         try {
@@ -455,6 +456,8 @@ class EnhancedMainMenu extends JFrame {
     private List<HexOrb> orbs = new ArrayList<>();
     private Timer animationTimer;
     private String playerName;
+    private Clip themeMusic;
+    private FloatControl volumeControl;
 
     void showBeautifulConfirm(String title, String message, Color themeColor,
                           Runnable onYes, Runnable onNo) {
@@ -546,7 +549,7 @@ class EnhancedMainMenu extends JFrame {
     panel.getActionMap().put("START", new AbstractAction() {
         public void actionPerformed(ActionEvent e) {
             EnhancedMainMenu.this.dispose();
-            new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+            new DifficultyMenuFrame(11, 15, playerName, themeMusic).setVisible(true);
         }
     });
     
@@ -576,6 +579,15 @@ panel.getActionMap().put("LOGOUT", new AbstractAction() {
 });
     
     setVisible(true);
+    playThemeMusic();
+    
+    // Stop music when window is closed
+    addWindowListener(new WindowAdapter() {
+        @Override
+        public void windowClosing(WindowEvent e) {
+            stopThemeMusic();
+        }
+    });
 }
     
     private void loadBackground(String png, String jpg) {
@@ -594,6 +606,65 @@ panel.getActionMap().put("LOGOUT", new AbstractAction() {
             }
         } catch (Exception e) {
             System.out.println("⚠ Menu background not found");
+        }
+    }
+    
+    private void playThemeMusic() {
+        new Thread(() -> {
+            try {
+                // Try multiple file names for the theme music
+                File[] possibleFiles = {
+                    new File("theme(menu).wav"),
+                    new File("theme_menu.wav"),
+                    new File("theme.wav"),
+                    new File("menu.wav")
+                };
+                
+                File musicFile = null;
+                for (File f : possibleFiles) {
+                    if (f.exists()) {
+                        musicFile = f;
+                        break;
+                    }
+                }
+                
+                if (musicFile == null) {
+                    System.out.println("⚠ Theme music file not found");
+                    return;
+                }
+                
+                // WAV is natively supported by Java
+                AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(musicFile);
+                themeMusic = AudioSystem.getClip();
+                themeMusic.open(audioInputStream);
+                
+                // Set volume control
+                if (themeMusic.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                    volumeControl = (FloatControl) themeMusic.getControl(FloatControl.Type.MASTER_GAIN);
+                    volumeControl.setValue(-10.0f); // Volume set to 80%
+                }
+                
+                // Play the music on a loop
+                themeMusic.loop(Clip.LOOP_CONTINUOUSLY);
+                System.out.println("✓ Theme music playing: " + musicFile.getName());
+                
+            } catch (UnsupportedAudioFileException e) {
+                System.out.println("⚠ Unsupported audio format");
+            } catch (IOException e) {
+                System.out.println("⚠ Error reading theme music file");
+            } catch (LineUnavailableException e) {
+                System.out.println("⚠ Audio line unavailable");
+            } catch (Exception e) {
+                System.out.println("⚠ Error playing theme music: " + e.getMessage());
+            }
+        }).start();
+    }
+    
+    private void stopThemeMusic() {
+        if (themeMusic != null && themeMusic.isRunning()) {
+            themeMusic.stop();
+            themeMusic.close();
+            System.out.println("✓ Theme music stopped");
         }
     }
     
@@ -682,7 +753,7 @@ panel.getActionMap().put("LOGOUT", new AbstractAction() {
     startBtn.setBounds(400, 320, 400, 85);
     startBtn.addActionListener(e -> {
         EnhancedMainMenu.this.dispose();
-        new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+        new DifficultyMenuFrame(11, 15, playerName, themeMusic).setVisible(true);
     });
     add(startBtn);
     
@@ -700,7 +771,7 @@ panel.getActionMap().put("LOGOUT", new AbstractAction() {
         void startGame() {
             EnhancedMainMenu.this.dispose();
             SwingUtilities.invokeLater(() -> {
-            new DifficultyMenuFrame(11, 15, playerName).setVisible(true);
+            new DifficultyMenuFrame(11, 15, playerName, themeMusic).setVisible(true);
         });
         }
         
@@ -1150,6 +1221,7 @@ class DifficultyMenuFrame extends JFrame {
     private final int rows;
     private final int cols;
     private String playerName;
+    private Clip themeMusic;  // Add theme music field
     private Image backgroundImage;
     private float glowIntensity = 0f;
     private Timer animationTimer;
@@ -1255,11 +1327,12 @@ class DifficultyMenuFrame extends JFrame {
     dialog.setVisible(true);
 }
 
-    DifficultyMenuFrame(int rows, int cols, String playerName) {  // ADD playerName parameter
+    DifficultyMenuFrame(int rows, int cols, String playerName, Clip themeMusic) {  // ADD themeMusic parameter
     super("Maze Adventure");
     this.rows = rows;
     this.cols = cols;
     this.playerName = playerName;
+    this.themeMusic = themeMusic;
 
         // Initialize particles
         for (int i = 0; i < 50; i++) {
@@ -1597,7 +1670,7 @@ setLocationRelativeTo(null);
 
     private void openGame(Difficulty dif) {
         animationTimer.stop();
-        MazeFrame frame = new MazeFrame(rows, cols, dif, playerName);
+        MazeFrame frame = new MazeFrame(rows, cols, dif, playerName, themeMusic);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
         this.dispose();
@@ -1850,10 +1923,17 @@ class MazeFrame extends JFrame {
     private final MazePanel mazePanel;
     private String playerName;  // ADD THIS
     private boolean isPaused = false;  // ADD THIS
+    private Clip themeMusic;  // Theme music reference
     
     // MODIFIED CONSTRUCTOR - Add playerName parameter
-    MazeFrame(int rows, int cols, Difficulty difficulty, String playerName) {
+    MazeFrame(int rows, int cols, Difficulty difficulty, String playerName, Clip themeMusic) {
+        this.themeMusic = themeMusic;
         this.playerName = playerName;  // ADD THIS
+        
+        // Stop theme music during gameplay
+        if (themeMusic != null && themeMusic.isRunning()) {
+            themeMusic.stop();
+        }
         
         setTitle("Maze Adventure - " + difficulty.name());
         mazePanel = new MazePanel(rows, cols, difficulty, playerName, this); // Pass playerName & this
@@ -1879,6 +1959,17 @@ class MazeFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 if (!mazePanel.gameOver && mazePanel.lives > 0) {
                     showPauseMenu();
+                }
+            }
+        });
+        
+        // Resume theme music when game window closes
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (themeMusic != null && !themeMusic.isRunning()) {
+                    themeMusic.setFramePosition(0);
+                    themeMusic.loop(Clip.LOOP_CONTINUOUSLY);
                 }
             }
         });
@@ -1920,6 +2011,11 @@ class MazePanel extends JPanel {
     private Image trapImage;        // Hazard/trap sprite
     private Image treasureImage;    // Treasure chest sprite
     
+    private Clip collisionSound;    // Collision sound effect
+    private Clip gameOverSound;     // Game over sound effect
+    private Clip gameStartSound;    // Game start sound effect
+    private Clip winnerSound;       // Winner/success sound effect
+    private long lastCollisionTime = 0;  // Cooldown for collisions
     private boolean isWalking = false;
     private boolean useFirstFrame = true;
     
@@ -2081,7 +2177,12 @@ class MazePanel extends JPanel {
                 }
             }
         });
-
+        
+        // Load collision sound
+        loadCollisionSound();
+        loadGameOverSound();
+        loadGameStartSound();
+        loadWinnerSound();
     }
      
     // helper: place key at generation time (ensure not on trap/start/exit)
@@ -2099,6 +2200,179 @@ class MazePanel extends JPanel {
                 keyCol = cc;
                 break;
             }
+        }
+    }
+    
+    private void loadCollisionSound() {
+        try {
+            File[] possibleFiles = {
+                new File("enemy-collide.wav"),
+                new File("collision.wav"),
+                new File("collide.wav")
+            };
+            
+            File soundFile = null;
+            for (File f : possibleFiles) {
+                if (f.exists()) {
+                    soundFile = f;
+                    break;
+                }
+            }
+            
+            if (soundFile == null) {
+                System.out.println("⚠ Collision sound file not found");
+                return;
+            }
+            
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
+            collisionSound = AudioSystem.getClip();
+            collisionSound.open(audioInputStream);
+            System.out.println("✓ Collision sound loaded: " + soundFile.getName());
+        } catch (Exception e) {
+            System.out.println("⚠ Error loading collision sound: " + e.getMessage());
+        }
+    }
+    
+    private void playCollisionSound() {
+        if (collisionSound != null) {
+            // Stop if already playing and restart
+            if (collisionSound.isRunning()) {
+                collisionSound.stop();
+            }
+            collisionSound.setFramePosition(0);
+            collisionSound.start();
+        }
+    }
+    
+    private void loadGameOverSound() {
+        try {
+            File[] possibleFiles = {
+                new File("game-over.wav"),
+                new File("gameover.wav"),
+                new File("game_over.wav")
+            };
+            
+            File soundFile = null;
+            for (File f : possibleFiles) {
+                if (f.exists()) {
+                    soundFile = f;
+                    break;
+                }
+            }
+            
+            if (soundFile == null) {
+                System.out.println("⚠ Game over sound file not found");
+                return;
+            }
+            
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
+            gameOverSound = AudioSystem.getClip();
+            gameOverSound.open(audioInputStream);
+            System.out.println("✓ Game over sound loaded: " + soundFile.getName());
+        } catch (Exception e) {
+            System.out.println("⚠ Error loading game over sound: " + e.getMessage());
+        }
+    }
+    
+    private void playGameOverSound() {
+        if (gameOverSound != null) {
+            // Stop if already playing and restart
+            if (gameOverSound.isRunning()) {
+                gameOverSound.stop();
+            }
+            gameOverSound.setFramePosition(0);
+            gameOverSound.start();
+        }
+    }
+    
+    private void loadGameStartSound() {
+        try {
+            File[] possibleFiles = {
+                new File("game-start.wav"),
+                new File("gamestart.wav"),
+                new File("game_start.wav"),
+                new File("start.wav")
+            };
+            
+            File soundFile = null;
+            for (File f : possibleFiles) {
+                if (f.exists()) {
+                    soundFile = f;
+                    break;
+                }
+            }
+            
+            if (soundFile == null) {
+                System.out.println("⚠ Game start sound file not found");
+                return;
+            }
+            
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
+            gameStartSound = AudioSystem.getClip();
+            gameStartSound.open(audioInputStream);
+            
+            // Set volume for game start sound to be louder
+            if (gameStartSound.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                FloatControl volumeControl = (FloatControl) gameStartSound.getControl(FloatControl.Type.MASTER_GAIN);
+                volumeControl.setValue(-5.0f);  // Loud volume (95%)
+            }
+            
+            System.out.println("✓ Game start sound loaded: " + soundFile.getName());
+        } catch (Exception e) {
+            System.out.println("⚠ Error loading game start sound: " + e.getMessage());
+        }
+    }
+    
+    private void playGameStartSound() {
+        if (gameStartSound != null) {
+            // Stop if already playing and restart
+            if (gameStartSound.isRunning()) {
+                gameStartSound.stop();
+            }
+            gameStartSound.setFramePosition(0);
+            gameStartSound.start();
+        }
+    }
+    
+    private void loadWinnerSound() {
+        try {
+            File[] possibleFiles = {
+                new File("winner-game-sound.wav"),
+                new File("winner-sound.wav"),
+                new File("winner.wav"),
+                new File("success.wav")
+            };
+            
+            File soundFile = null;
+            for (File f : possibleFiles) {
+                if (f.exists()) {
+                    soundFile = f;
+                    break;
+                }
+            }
+            
+            if (soundFile == null) {
+                System.out.println("⚠ Winner sound file not found");
+                return;
+            }
+            
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
+            winnerSound = AudioSystem.getClip();
+            winnerSound.open(audioInputStream);
+            System.out.println("✓ Winner sound loaded: " + soundFile.getName());
+        } catch (Exception e) {
+            System.out.println("⚠ Error loading winner sound: " + e.getMessage());
+        }
+    }
+    
+    private void playWinnerSound() {
+        if (winnerSound != null) {
+            // Stop if already playing and restart
+            if (winnerSound.isRunning()) {
+                winnerSound.stop();
+            }
+            winnerSound.setFramePosition(0);
+            winnerSound.start();
         }
     }
 
@@ -2254,33 +2528,39 @@ class MazePanel extends JPanel {
 
         // If enemy catches the player
         if (enemy.r == playerRow && enemy.c == playerCol) {
-    lives--;
-    showQuickMessage("💀 Enemy caught you! Lives: " + lives, new Color(231, 76, 60));
-    
-    if (lives <= 0) {
-        gameOver = true;
-        Timer delayTimer = new Timer(1200, ev -> {
-            int opt = JOptionPane.showConfirmDialog(
-                this,
-                "Game Over! Final Score: " + score + "\n\nPlay again?",
-                "Game Over",
-                JOptionPane.YES_NO_OPTION
-            );
-            if (opt == JOptionPane.YES_OPTION) {
-                randomize();
-            } else {
-                parentFrame.dispose();
-                new EnhancedMainMenu(playerName);
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastCollisionTime > 500) {  // 500ms cooldown
+                lastCollisionTime = currentTime;
+                playCollisionSound();
+                lives--;
+                showQuickMessage("💀 Enemy caught you! Lives: " + lives, new Color(231, 76, 60));
+                
+                if (lives <= 0) {
+                    gameOver = true;
+                    playGameOverSound();
+                    Timer delayTimer = new Timer(1200, ev -> {
+                        int opt = JOptionPane.showConfirmDialog(
+                            this,
+                            "Game Over! Final Score: " + score + "\n\nPlay again?",
+                            "Game Over",
+                            JOptionPane.YES_NO_OPTION
+                        );
+                        if (opt == JOptionPane.YES_OPTION) {
+                            randomize();
+                        } else {
+                            parentFrame.dispose();
+                            new EnhancedMainMenu(playerName);
+                        }
+                    });
+                    delayTimer.setRepeats(false);
+                    delayTimer.start();
+                    return;
+                } else {
+                    playerRow = 0;
+                    playerCol = 0;
+                }
             }
-        });
-        delayTimer.setRepeats(false);
-        delayTimer.start();
-        return;
-    } else {
-        playerRow = 0;
-        playerCol = 0;
-    }
-}
+        }
 
         repaint();
     }
@@ -2432,6 +2712,7 @@ class MazePanel extends JPanel {
         hasKey = false;
         gameOver = false;
         spawnEnemy();
+        playGameStartSound();
 
         repaint();
     }
@@ -2482,10 +2763,12 @@ class MazePanel extends JPanel {
     
         // check traps/treasures
         if (next.trap) {
+    playCollisionSound();
     lives--;
     next.trap = false;
     if (lives <= 0) {
     gameOver = true;
+    playGameOverSound();
     Timer delayTimer = new Timer(500, ev -> {
         showBeautifulDialog(
             "GAME OVER",
@@ -2504,6 +2787,7 @@ class MazePanel extends JPanel {
 }
     showQuickMessage(" Trap! Life lost. Lives: " + lives, new Color(231, 76, 60));
 } else if (next.treasure) {
+    playWinnerSound();
     score += 10;
     next.treasure = false;
     showQuickMessage(" Treasure! +10 points", new Color(241, 196, 15));
@@ -2513,6 +2797,7 @@ class MazePanel extends JPanel {
 
         // check key pickup (visible from start)
         if (keyRow >= 0 && keyCol >= 0 && playerRow == keyRow && playerCol == keyCol) {
+    playWinnerSound();
     hasKey = true;
     keyRow = -1; 
     keyCol = -1;
@@ -2522,6 +2807,7 @@ class MazePanel extends JPanel {
         // check door only when player has the key
        if (hasKey && doorRow >= 0 && doorCol >= 0 && playerRow == doorRow && playerCol == doorCol) {
     gameOver = true;
+    playGameOverSound();
     updateScore();
     
     Timer delayTimer = new Timer(500, ev -> {
