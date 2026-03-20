@@ -2579,8 +2579,8 @@ class MazePanel extends JPanel {
         }
     }
 
-    // regenerate with a fresh RNG and ensure door/path/traps per your rules (MODIFIED)
-    void randomize() {
+      // regenerate with a fresh RNG and ensure door/path/traps per your rules (MODIFIED)
+      void randomize() {
         this.maze = new Maze(rows, cols);
         this.maze.generate();
 
@@ -2703,6 +2703,158 @@ class MazePanel extends JPanel {
 
         // place the key (visible from start) while ensuring it's not on trap/door/start
         placeInitialKey();
+
+        // === Trap count control relative to the KEY ===
+        // Goal:
+        //  - Keep multiple shortest paths from START -> KEY.
+        //  - But ensure there are only 1-2 traps in the "between" region,
+        //    interpreted as cells that lie on at least one shortest path to the key.
+        //
+        // Implementation:
+        // 1) Compute BFS distances from START and from KEY (walls only).
+        // 2) A cell is "on a shortest path to KEY" if:
+        //      distStart[cell] + distKey[cell] == distStart[KEY]
+        // 3) Clear traps from all those shortest-path cells.
+        // 4) Re-place exactly N traps there (N = 1..2), excluding START/KEY/DOOR.
+        //
+        // This prevents cases where 3+ traps end up blocking most/ all routes to the key.
+        {
+            int INF = Integer.MAX_VALUE / 4;
+            int[][] distStart = new int[rows][cols];
+            int[][] distKey = new int[rows][cols];
+            for (int rr = 0; rr < rows; rr++) {
+                Arrays.fill(distStart[rr], INF);
+                Arrays.fill(distKey[rr], INF);
+            }
+
+            java.util.Queue<Cell> q = new java.util.LinkedList<>();
+
+            // BFS from START
+            distStart[0][0] = 0;
+            q.add(maze.grid[0][0]);
+            while (!q.isEmpty()) {
+                Cell cur = q.poll();
+                int cr = cur.r, cc = cur.c;
+                int d = distStart[cr][cc];
+
+                if (!cur.wall[0] && cr > 0 && distStart[cr - 1][cc] == INF) {
+                    distStart[cr - 1][cc] = d + 1;
+                    q.add(maze.grid[cr - 1][cc]);
+                }
+                if (!cur.wall[1] && cc < cols - 1 && distStart[cr][cc + 1] == INF) {
+                    distStart[cr][cc + 1] = d + 1;
+                    q.add(maze.grid[cr][cc + 1]);
+                }
+                if (!cur.wall[2] && cr < rows - 1 && distStart[cr + 1][cc] == INF) {
+                    distStart[cr + 1][cc] = d + 1;
+                    q.add(maze.grid[cr + 1][cc]);
+                }
+                if (!cur.wall[3] && cc > 0 && distStart[cr][cc - 1] == INF) {
+                    distStart[cr][cc - 1] = d + 1;
+                    q.add(maze.grid[cr][cc - 1]);
+                }
+            }
+
+            // BFS from KEY
+            distKey[keyRow][keyCol] = 0;
+            q.add(maze.grid[keyRow][keyCol]);
+            while (!q.isEmpty()) {
+                Cell cur = q.poll();
+                int cr = cur.r, cc = cur.c;
+                int d = distKey[cr][cc];
+
+                    if (!cur.wall[0] && cr > 0 && distKey[cr - 1][cc] == INF) {
+                        distKey[cr - 1][cc] = d + 1;
+                        q.add(maze.grid[cr - 1][cc]);
+                    }
+                    if (!cur.wall[1] && cc < cols - 1 && distKey[cr][cc + 1] == INF) {
+                        distKey[cr][cc + 1] = d + 1;
+                        q.add(maze.grid[cr][cc + 1]);
+                    }
+                    if (!cur.wall[2] && cr < rows - 1 && distKey[cr + 1][cc] == INF) {
+                        distKey[cr + 1][cc] = d + 1;
+                        q.add(maze.grid[cr + 1][cc]);
+                    }
+                    if (!cur.wall[3] && cc > 0 && distKey[cr][cc - 1] == INF) {
+                        distKey[cr][cc - 1] = d + 1;
+                        q.add(maze.grid[cr][cc - 1]);
+                    }
+            }
+
+            int shortestLen = distStart[keyRow][keyCol];
+            if (shortestLen != INF) {
+                // Clear traps on all shortest-path cells (union).
+                for (int rr = 0; rr < rows; rr++) {
+                    for (int cc = 0; cc < cols; cc++) {
+                        int ds = distStart[rr][cc];
+                        int dk = distKey[rr][cc];
+                        if (ds != INF && dk != INF && ds + dk == shortestLen) {
+                            maze.grid[rr][cc].trap = false;
+                        }
+                    }
+                }
+
+                // Choose how many traps to place between START and KEY.
+                int trapsBetween;
+                switch (difficulty) {
+                    case EASY: trapsBetween = 1; break;
+                    case MEDIUM: trapsBetween = 2; break;
+                    case HARD: default: trapsBetween = 2; break;
+                }
+
+                // Candidate cells must be "urban-ish": dead ends or junctions.
+                // Also exclude START/KEY/DOOR so traps don't appear on start/key/exit.
+                List<Cell> candidates = new ArrayList<>();
+                for (int rr = 0; rr < rows; rr++) {
+                    for (int cc = 0; cc < cols; cc++) {
+                        int ds = distStart[rr][cc];
+                        int dk = distKey[rr][cc];
+                        if (!(ds != INF && dk != INF && ds + dk == shortestLen)) continue;
+
+                        if ((rr == 0 && cc == 0) || (rr == keyRow && cc == keyCol)) continue;
+                        if (rr == doorRow && cc == doorCol) continue;
+
+                        Cell cell = maze.grid[rr][cc];
+                        int openNeighbors = 0;
+                        if (rr > 0 && !cell.wall[0]) openNeighbors++;
+                        if (cc < cols - 1 && !cell.wall[1]) openNeighbors++;
+                        if (rr < rows - 1 && !cell.wall[2]) openNeighbors++;
+                        if (cc > 0 && !cell.wall[3]) openNeighbors++;
+
+                        boolean isDeadEnd = (openNeighbors == 1);
+                        boolean isUrbanJunction = (openNeighbors >= 3);
+                        if (isDeadEnd || isUrbanJunction) {
+                            candidates.add(cell);
+                        }
+                    }
+                }
+
+                // If we didn't find enough candidates, fall back to any shortest-path cell.
+                if (candidates.size() < trapsBetween) {
+                    for (int rr = 0; rr < rows; rr++) {
+                        for (int cc = 0; cc < cols; cc++) {
+                            int ds = distStart[rr][cc];
+                            int dk = distKey[rr][cc];
+                            if (!(ds != INF && dk != INF && ds + dk == shortestLen)) continue;
+
+                            if ((rr == 0 && cc == 0) || (rr == keyRow && cc == keyCol)) continue;
+                            if (rr == doorRow && cc == doorCol) continue;
+
+                            Cell cell = maze.grid[rr][cc];
+                            if (!candidates.contains(cell)) candidates.add(cell);
+                        }
+                    }
+                }
+
+                // Place traps (randomly) on chosen candidates.
+                while (trapsBetween > 0 && !candidates.isEmpty()) {
+                    int idx = r.nextInt(candidates.size());
+                    Cell chosen = candidates.remove(idx);
+                    chosen.trap = true;
+                    trapsBetween--;
+                }
+            }
+        }
 
         // reset player state
         playerRow = 0;
